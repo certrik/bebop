@@ -1,0 +1,62 @@
+name: bebop
+
+on:
+  workflow_dispatch:
+    inputs:
+      web_location:
+        description: 'web location'
+        required: true
+      loglevel:
+        description: 'log level'
+        required: false
+        default: 'DEBUG'
+      useragent:
+        description: 'useragent'
+        required: false
+        default: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+
+jobs:
+  exec:
+    runs-on: ubuntu-latest
+    services:
+      torproxy:
+        image: ghcr.io/joshhighet/torsocc:latest
+        ports:
+          - 9050:9050
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: wait_circuit_built
+        run: sleep 15
+      - name: check_proxy
+        run: |
+          curl -s --socks5-hostname localhost:9050 https://check.torproject.org/api/ip
+      - name: prepare
+        run: |
+          git clone https://github.com/joshhighet/bebop
+          pip3 install -r bebop/requirements.txt
+          sudo apt install --yes proxychains-ng nmap python3-pip jq
+      - name: run
+        run: |
+          cd bebop
+          python3 -m app \
+          --loglevel ${{ inputs.loglevel }} \
+          --useragent "${{ inputs.useragent }}" \
+          ${{ inputs.web_location }} 2>&1 | tee /tmp/log.txt
+        env:
+          BINARYEDGE_API_KEY: ${{ secrets.BINARYEDGE_API_KEY }}
+          CENSYS_API_ID: ${{ secrets.CENSYS_API_ID }}
+          CENSYS_API_SECRET: ${{ secrets.CENSYS_API_SECRET }}
+          FOFA_API_KEY: ${{ secrets.FOFA_API_KEY }}
+          FOFA_API_MAIL: ${{ secrets.FOFA_API_MAIL }}
+          SECURITYTRAILS_API_KEY: ${{ secrets.SECURITYTRAILS_API_KEY }}
+          SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
+          URLSCAN_API_KEY: ${{ secrets.URLSCAN_API_KEY }}
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          ZOOMEYE_API_KEY: ${{ secrets.ZOOMEYE_API_KEY }}
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: log
+          path: /tmp/log.txt
