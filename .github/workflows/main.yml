@@ -56,7 +56,7 @@ jobs:
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
           ZOOMEYE_API_KEY: ${{ secrets.ZOOMEYE_API_KEY }}
       - name: upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: log
           path: /tmp/log.txt
