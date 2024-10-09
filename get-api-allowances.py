@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 if os.getenv('ZOOMEYE_API_KEY', None) != None:
     zoomeye_authkey = os.getenv('ZOOMEYE_API_KEY')
-    zoomeye_data = requests.get('https://api.zoomeye.org/resources-info', headers={'API-KEY': zoomeye_authkey})
+    zoomeye_data = requests.get('https://api.zoomeye.hk/resources-info', headers={'API-KEY': zoomeye_authkey})
     print('############# ZoomEye')
     print(str(zoomeye_data.json()['quota_info']['remain_total_quota']) + ' remaining credits')
 else:
