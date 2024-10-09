@@ -30,7 +30,7 @@ if SHODAN_API_KEY:
 
 def query_zoomeye(squery):
     '''
-    https://www.zoomeye.org/doc?channel=api
+    https://www.zoomeye.hk/doc?channel=api
     '''
     findings = []
     if not ZOOMEYE_API_KEY:
@@ -41,7 +41,7 @@ def query_zoomeye(squery):
         return findings
     log.debug('zoomeye: querying %s', squery)
     try:
-        results = requests.get('https://api.zoomeye.org/host/search',
+        results = requests.get('https://api.zoomeye.hk/host/search',
                                params={'query': squery},
                                headers={'API-KEY': ZOOMEYE_API_KEY})
         results.raise_for_status()
