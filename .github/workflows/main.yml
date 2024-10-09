@@ -34,7 +34,7 @@ jobs:
           curl -s --socks5-hostname localhost:9050 https://check.torproject.org/api/ip
       - name: prepare
         run: |
-          git clone https://github.com/joshhighet/bebop
+          git clone https://github.com/certrik/bebop
           pip3 install -r bebop/requirements.txt
           sudo apt install --yes proxychains-ng nmap python3-pip jq
       - name: run
