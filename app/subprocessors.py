@@ -30,34 +30,49 @@ if SHODAN_API_KEY:
 
 def query_zoomeye(squery):
     '''
-    https://www.zoomeye.hk/doc?channel=api
+    Query ZoomEye API for the given search query.
     '''
     findings = []
     if not ZOOMEYE_API_KEY:
-        log.warning("zoomeye: without an api key queries are skipped")
+        log.warning("zoomeye: without an api key, queries are skipped")
         return findings
     if not squery:
         log.error("zoomeye: no query provided")
         return findings
     log.debug('zoomeye: querying %s', squery)
+
+    headers = {
+        'API-KEY': ZOOMEYE_API_KEY,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0'
+    }
+
+    params = {'query': squery}
+
     try:
         results = requests.get('https://api.zoomeye.hk/host/search',
-                               params={'query': squery},
-                               headers={'API-KEY': ZOOMEYE_API_KEY})
+                               params=params,
+                               headers=headers)
         results.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        log.error('zoomeye: api error: %s', e)
+    except requests.exceptions.HTTPError as e:
+        log.error('zoomeye: HTTP error: %s', e)
+        log.error('Response status code: %s', e.response.status_code)
+        log.error('Response content: %s', e.response.text)
         return findings
+    except requests.exceptions.RequestException as e:
+        log.error('zoomeye: Request exception: %s', e)
+        return findings
+
     results_data = results.json()
-    total_results = results_data['total']
+    total_results = results_data.get('total', 0)
     log.info('zoomeye: found %s results for %s', total_results, squery)
+
     if total_results <= 20:
-        for result in results_data['matches']:
+        for result in results_data.get('matches', []):
             findings.append(result)
-            log.info('zoomeye: found %s', result['ip'])
-            log.debug('zoomeye: %s', result['portinfo']['banner'])
+            log.info('zoomeye: found %s', result.get('ip'))
+            log.debug('zoomeye: %s', result.get('portinfo', {}).get('banner'))
     else:
-        log.warning('zoomeye: more than 20 results found. skipping query as it is not deemed rare.')
+        log.warning('zoomeye: more than 20 results found. Skipping query as it is not deemed rare.')
     return findings
 
 def query_binaryedge(squery):
