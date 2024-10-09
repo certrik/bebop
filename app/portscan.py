@@ -58,7 +58,7 @@ def portdata(port):
                 log.debug(script)
     return portinf
 
-def main(fqdn, useragent, usetor=True, max_scanport=20):
+def main(fqdn, useragent, usetor=True, max_scanport=40):
     command='\
 nmap -sT -PN -n -sV --open -oX - --top-ports %s \
 --version-intensity 4 --script ssh-hostkey,ssh-auth-methods,banner \
