@@ -37,25 +37,33 @@ def portdata(port):
         portinf['ostype'] = port['service']['@ostype']
     if 'cpe' in port['service']:
         portinf['cpe'] = port['service']['cpe']
+    
     if 'script' in port:
-        for script in port['script']:
-            try:
-                if script['@id'] == 'banner':
-                    portinf['banner'] = script['@output']
-                elif script['@id'] == 'ssh-hostkey':
-                    for line in script['@output'].splitlines():
-                        if line and not line.isspace():
-                            portinf['hostprints'].append(line.strip())
-                elif script['@id'] == 'ssh-auth-methods':
-                    if 'publickey' in script['@output']:
-                        portinf['shellauthmethods'].append('publickey')
-                    if 'password' in script['@output']:
-                        portinf['shellauthmethods'].append('password')
-                    if 'keyboard-interactive' in script['@output']:
-                        portinf['shellauthmethods'].append('keyboard-interactive')
-            except TypeError:
-                log.debug('failed to parse banner script: %f', TypeError)
-                log.debug(script)
+        scripts = port['script']
+        if isinstance(scripts, dict):  # Convert single dict to list
+            scripts = [scripts]
+        if isinstance(scripts, list):  # Ensure it's iterable
+            for script in scripts:
+                try:
+                    if isinstance(script, dict) and '@id' in script:
+                        if script['@id'] == 'banner':
+                            portinf['banner'] = script.get('@output', '')
+                        elif script['@id'] == 'ssh-hostkey':
+                            for line in script.get('@output', '').splitlines():
+                                if line and not line.isspace():
+                                    portinf['hostprints'].append(line.strip())
+                        elif script['@id'] == 'ssh-auth-methods':
+                            output = script.get('@output', '')
+                            if 'publickey' in output:
+                                portinf['shellauthmethods'].append('publickey')
+                            if 'password' in output:
+                                portinf['shellauthmethods'].append('password')
+                            if 'keyboard-interactive' in output:
+                                portinf['shellauthmethods'].append('keyboard-interactive')
+                except Exception as e:
+                    log.debug('failed to parse banner script: %s', e)
+                    log.debug('script data: %s', script)
+    
     return portinf
 
 def main(fqdn, useragent, usetor=True, max_scanport=40):
