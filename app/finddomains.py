@@ -3,7 +3,7 @@ import socks
 import logging
 import app.subprocessors as subprocessors
 
-from utilities import getproxyvalue
+from app.utilities import getproxyvalue
 
 log = logging.getLogger(__name__)
 
