@@ -317,3 +317,9 @@ testcases are a work in progress but can be ran with
 ```shell
 python3 -m unittest discover -s tests
 ```
+
+# acknowledgments
+
+This project was originally developed by [Josh Highet](https://github.com/joshhighet). We are grateful for the excellent work and the foundation that made this tool possible. The original repository can be found at [joshhighet/bebop](https://github.com/joshhighet/bebop).
+
+Thank you for creating such a powerful and useful tool for web service reconnaissance and security assessment.
