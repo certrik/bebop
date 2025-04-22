@@ -124,8 +124,6 @@ _to avoid noise, a list of the top 200 favicons have been added to this reposito
 
 ### domain finder
 
-> :warning: to be completed
-
 [finddomains.py](app/finddomains.py) attempts to try find domains resolving to a given IP address. it relies on four methods (rDNS, VisusTotal, urlscan & SecurityTrails)
 
 for any domains found, they are resolved over Tor and noted if matching the target

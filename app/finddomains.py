@@ -37,7 +37,7 @@ def check_hostname_resolvematch(hostnames, target_ip):
 
 def main(ip):
     log.info('starting finddomains')
-    reverse_dns_hostname = reverse_dns_lookup(target_ip)
+    reverse_dns_hostname = reverse_dns_lookup(ip)
     log.info('querying virustotal for resolutions')
     vtires = subprocessors.query_resolutions_virustotal(ip)
     log.info('querying urlscan for resolutions')
@@ -52,3 +52,4 @@ def main(ip):
     resolved_hostnames = check_hostname_resolvematch(combined_hostnames, ip)
     log.info(f"found {len(resolved_hostnames)} hostnames resolving to {ip}")
     log.debug(f"resolved hostnames: {resolved_hostnames}")
+    return resolved_hostnames

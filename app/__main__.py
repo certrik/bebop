@@ -17,6 +17,7 @@ import app.opendir as opendir
 import app.getcert as getcert
 import app.cliart as cliart
 import app.cryptocurrency as cryptocurrency
+import app.finddomains as finddomains
 from .utilities import preflight, getfqdn, getbaseurl, validurl, getport
 
 parser = argparse.ArgumentParser()
@@ -98,6 +99,18 @@ loop.close()
 favicon_data = favicon.main(url_base, requestobject, usetor=torstate)
 pagespider_data = pagespider.main(requestobject, usetor=torstate, skip_queryurl=True)
 cryptocurrency_data = cryptocurrency.main(requestobject.text)
+
+# Get the IP address from the request object
+if hasattr(requestobject, 'raw') and hasattr(requestobject.raw, 'connection') and hasattr(requestobject.raw.connection, 'sock'):
+    ip_address = requestobject.raw.connection.sock.getpeername()[0]
+    logging.info(f"IP address: {ip_address}")
+    # Use finddomains to discover domains resolving to this IP
+    domains_data = finddomains.main(ip_address)
+    if domains_data:
+        logging.info(f"Found {len(domains_data)} domains resolving to {ip_address}")
+        for domain in domains_data:
+            logging.info(f"Domain: {domain}")
+
 for item in pagespider_data['samedomain']:
     itemsource = getpage.main(item)
     if itemsource is not None:
