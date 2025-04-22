@@ -45,7 +45,6 @@ jobs:
           --useragent "${{ inputs.useragent }}" \
           ${{ inputs.web_location }} 2>&1 | tee /tmp/log.txt
         env:
-          BINARYEDGE_API_KEY: ${{ secrets.BINARYEDGE_API_KEY }}
           CENSYS_API_ID: ${{ secrets.CENSYS_API_ID }}
           CENSYS_API_SECRET: ${{ secrets.CENSYS_API_SECRET }}
           FOFA_API_KEY: ${{ secrets.FOFA_API_KEY }}
