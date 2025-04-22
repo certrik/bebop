@@ -26,8 +26,6 @@ def main(requestobject, doshodan=True, docensys=True, dobedge=True, dozoome=True
             if docensys:
                 querystr = 'services.http.response.html_title:"' + title.text + '"'
                 subprocessors.query_censys(querystr)
-            if dobedge:
-                subprocessors.query_binaryedge('web.title:"' + title.text + '"')
             if dozoome:
                 subprocessors.query_zoomeye('title:"' + title.text + '"')
             if dofofa:

@@ -17,7 +17,6 @@ graph LR
         shodan
         fofa
         censys
-        binaryedge
         zoomeye
         end
     end
@@ -119,7 +118,7 @@ field extractions for bitcoin, monero and ethereum - leveraging blockcypher & wa
 - the favicon discovery will attempt to parse the icon from any HTML, falling back to hardcoded paths
 - if found, the favicon is downloaded and an [MurmurHash](https://commons.apache.org/proper/commons-codec/apidocs/org/apache/commons/codec/digest/MurmurHash3.html) is computed
 - the hash is searched against the following engines where credentials are provided
-`shodan:http.favicon.hash`, `censys:services.http.response.favicons.md5_hash`, `binaryedge:web.favicon.mmh3` & `zoomeye:iconhash`
+`shodan:http.favicon.hash`, `censys:services.http.response.favicons.md5_hash` & `zoomeye:iconhash`
 
 _to avoid noise, a list of the top 200 favicons have been added to this repository - if a finding is matched, it will not be considered unique - see the housekeeping section for details_
 
@@ -135,7 +134,7 @@ for any domains found, they are resolved over Tor and noted if matching the targ
 
 [getcert.py](app/getcert.py) will request and parse out SSL information where it exists (alt/common names, issuer, subject, etc)
 
-it will also attempt to discover the SSL serial and if deemed globally rare, poll shodan/censys/binaryedge/zoomeye/fofa for sightings
+it will also attempt to discover the SSL serial and if deemed globally rare, poll shodan/censys/zoomeye/fofa for sightings
 
 ### headers
 
@@ -193,7 +192,7 @@ docker build --build-arg SOCKS_HOST=127.0.0.1 --build-arg SOCKS_PORT=9050 bebop 
 
 ## external services
 
-if given credentials, binaryedge, censys, shodan & zoomeye can be used to for enrichment, see the above diagram for specific use criteria
+if given credentials, censys, shodan & zoomeye can be used to for enrichment, see the above diagram for specific use criteria
 
 _using one, any or all external data repositories is optional and only done when authorisation parameters are explicitly provided_
 
@@ -202,15 +201,12 @@ _using one, any or all external data repositories is optional and only done when
 | Censys            | `CENSYS_API_ID` & `CENSYS_API_SECRET` | [search.censys.io/account/api](https://search.censys.io/account/api)                             |
 | Shodan            | `SHODAN_API_KEY`                      | [account.shodan.io](https://account.shodan.io)                                                   |
 | FOFA              | `FOFA_API_KEY`                        | [en.fofa.info](https://en.fofa.info/userInfo)                                                    |
-| BinaryEdge        | `BINARYEDGE_API_KEY`                  | [app.binaryedge.io/account/api](https://app.binaryedge.io/account/api)                           |
 | ZoomEye           | `ZOOMEYE_API_KEY`                     | [zoomeye.org/profile](https://www.zoomeye.org/profile)                                           |
 | urlscan           | `URLSCAN_API_KEY`                     | [urlscan.io/user/profile](https://urlscan.io/user/profile/)                                      |
 | VirusTotal        | `VIRUSTOTAL_API_KEY`                  | [support.virustotal.com](https://support.virustotal.com/hc/en-us/articles/115002100149-API)      |
 | SecurityTrails    | `SECURITYTRAILS_API_KEY`              | [securitytrails.com/app/account/credentials](https://securitytrails.com/app/account/credentials) |
 
 :note: FOFA does not have a free API tier. All searches require F credits, excluding `icon_hash` searches which require a business plan.
-
-
 
 ```shell
 # if you have already built the image locally
@@ -223,6 +219,44 @@ docker run -e SOCKS_HOST=yourproxy.fqdn -e SOCKS_PORT=8080 -e ZOOMEYE_API_KEY=12
 python3 -m app facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd.onion
 ```
 
+## running with GitHub Actions
+
+You can use GitHub Actions to run the project directly from your browser without setting up a local environment. This is particularly useful for quick scans or when you don't want to set up the required dependencies locally.
+
+### How to Run
+
+1. Go to the "Actions" tab in your repository
+2. Select the "bebop" workflow
+3. Click "Run workflow"
+4. Fill in the required parameters:
+   - `web_location`: The URL or .onion address you want to scan
+   - `loglevel` (optional): Set to "DEBUG" for verbose output
+   - `useragent` (optional): Custom user agent string
+
+### Environment Variables
+
+The GitHub Actions workflow automatically sets up a Tor proxy for you. If you want to use external services for enrichment, you'll need to add the following secrets to your repository:
+
+1. Go to your repository settings
+2. Navigate to "Secrets and variables" → "Actions"
+3. Add the following secrets as needed:
+   - `CENSYS_API_ID`
+   - `CENSYS_API_SECRET`
+   - `FOFA_API_KEY`
+   - `FOFA_API_MAIL`
+   - `SECURITYTRAILS_API_KEY`
+   - `SHODAN_API_KEY`
+   - `URLSCAN_API_KEY`
+   - `VIRUSTOTAL_API_KEY`
+   - `ZOOMEYE_API_KEY`
+
+### Output
+
+After the workflow completes:
+1. The scan results will be available as an artifact
+2. You can download the log file to see the complete output
+3. The results will include all the standard bebop outputs (favicon detection, headers, port scans, etc.)
+
 ## subprocessors
 
 you can use [get-api-allowances.py](get-api-allowances.py) to retrieve search query credit balances from the engines you utilise.
@@ -231,8 +265,6 @@ you can use [get-api-allowances.py](get-api-allowances.py) to retrieve search qu
 x:bebop (main*) $ ./get-api-allowances.py
 ############# ZoomEye
 359871 remaining credits
-############## BinaryEdge
-used 220 out of 250 available credits - 30 remaining
 ################ fofa
 coins: 0
 points: 9666
