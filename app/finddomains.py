@@ -1,7 +1,7 @@
 import socket
 import socks
 import logging
-import subprocessors
+import app.subprocessors as subprocessors
 
 from utilities import getproxyvalue
 

@@ -43,7 +43,7 @@ logging.basicConfig(
 
 if len(sys.argv) == 1:
     print(
-    '''
+    r'''
                 __                     
         _(\    |@@|                        __         __              
         (__/\__ \--/ __                    / /_  ___  / /_  ____  ____ 
@@ -53,7 +53,8 @@ if len(sys.argv) == 1:
             (--/\--)    \__/                                /_/      
             _)(  )(_                  
             `---''---`                 hidden service safari 👀 🧅 💻 
-    ''')
+    '''
+    )
 
 if os.environ.get('GITHUB_ACTIONS') is None:
     cliart.prints()
