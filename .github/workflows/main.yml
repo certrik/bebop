@@ -35,7 +35,9 @@ jobs:
       - name: prepare
         run: |
           git clone https://github.com/certrik/bebop
-          pip3 install -r bebop/requirements.txt
+          cd bebop
+          pip3 install -e .
+          pip3 install -r requirements.txt
           sudo apt install --yes proxychains-ng nmap python3-pip jq
       - name: run
         run: |
