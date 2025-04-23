@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 from app.getpage import main as getpage_main
-import app.subprocessors as subprocessors
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
 
 log = logging.getLogger(__name__)
 
@@ -86,11 +86,11 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
         log.warning('favicon found in common hashlist, unlikely a unique asset - skipping shodan')
         return
     if doshodan is True:
-        subprocessors.query_shodan('http.favicon.hash:' + str(faviconmmh3))
+        query_shodan('http.favicon.hash:' + str(faviconmmh3))
     if docensys is True:
-        subprocessors.query_censys('services.http.response.favicons.md5_hash:' + str(faviconmd5))
+        query_censys('services.http.response.favicons.md5_hash:' + str(faviconmd5))
     if dozoome is True:
-        subprocessors.query_zoomeye('iconhash:' + str(faviconmmh3))
+        query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:
-        subprocessors.query_fofa('icon_hash=' + str(faviconmmh3))
+        query_fofa('icon_hash=' + str(faviconmmh3))
     return faviconmmh3

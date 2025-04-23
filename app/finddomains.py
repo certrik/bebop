@@ -1,7 +1,11 @@
 import socket
 import socks
 import logging
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
+from app.subprocessors import (
+    query_resolutions_virustotal,
+    query_resolutions_urlscan,
+    query_resolutions_securitytrails
+)
 
 from app.utilities import getproxyvalue
 
@@ -39,11 +43,11 @@ def main(ip):
     log.info('starting finddomains')
     reverse_dns_hostname = reverse_dns_lookup(ip)
     log.info('querying virustotal for resolutions')
-    vtires = query_shodan(ip)
+    vtires = query_resolutions_virustotal(ip)
     log.info('querying urlscan for resolutions')
-    urlsres = query_censys(ip)
+    urlsres = query_resolutions_urlscan(ip)
     log.info('querying securitytrails for resolutions')
-    strailres = query_zoomeye(ip)
+    strailres = query_resolutions_securitytrails(ip)
     combined_hostnames = vtires.union(urlsres, strailres)
     if reverse_dns_hostname:
         combined_hostnames.add(reverse_dns_hostname)
