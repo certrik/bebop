@@ -10,7 +10,7 @@ from aiohttp_socks import ProxyConnector
 log = logging.getLogger(__name__)
 
 import app.title as title
-from .utilities import getsocks, useragentstr
+from app.utilities import getsocks, useragentstr
 
 async def is_catch_all(session, location, attempts=3):
     for _ in range(attempts):

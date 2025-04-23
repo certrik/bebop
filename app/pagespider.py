@@ -7,7 +7,7 @@ import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 
-from .utilities import getsocks, useragentstr
+from app.utilities import getsocks, useragentstr
 
 log = logging.getLogger(__name__)
 

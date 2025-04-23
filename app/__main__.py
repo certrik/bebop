@@ -18,7 +18,7 @@ import app.getcert as getcert
 import app.cliart as cliart
 import app.cryptocurrency as cryptocurrency
 import app.finddomains as finddomains
-from .utilities import preflight, getfqdn, getbaseurl, validurl, getport
+from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport
 
 parser = argparse.ArgumentParser()
 parser.add_argument('target', help='target address')

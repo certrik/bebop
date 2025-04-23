@@ -8,7 +8,7 @@ import json
 import logging
 import subprocess
 
-from .utilities import gen_chainconfig
+from app.utilities import gen_chainconfig
 
 log = logging.getLogger(__name__)
 

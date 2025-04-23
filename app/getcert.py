@@ -10,7 +10,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 
 import app.subprocessors as subprocessors
-from .utilities import getproxyvalue
+from app.utilities import getproxyvalue
 
 sockshost = getproxyvalue()[0]
 socksport = getproxyvalue()[1]
