@@ -9,7 +9,7 @@ from OpenSSL import SSL
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 
-import app.subprocessors as subprocessors
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
 from app.utilities import getproxyvalue
 
 sockshost = getproxyvalue()[0]
@@ -87,13 +87,13 @@ def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, do
     sock.close()
     if commonserial(crypto_cert.serial_number) is False:
         if doshodan is True:
-            subprocessors.query_shodan('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
+            query_shodan('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
         if docensys is True:
-            subprocessors.query_censys('services.ssl.certificates.parsed.serial_number:"' + str(crypto_cert.serial_number) + '"')
+            query_censys('services.ssl.certificates.parsed.serial_number:"' + str(crypto_cert.serial_number) + '"')
         if dozoome is True:
-            subprocessors.query_zoomeye('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
+            query_zoomeye('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
         if dofofa is True:
-            subprocessors.query_fofa('cert="' + str(crypto_cert.serial_number) + '"')
+            query_fofa('cert="' + str(crypto_cert.serial_number) + '"')
     else:
         logging.debug('serial number match in common list, not searching shodan')
     data = {

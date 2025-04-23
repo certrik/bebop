@@ -4,7 +4,7 @@ import logging
 import warnings
 from bs4 import BeautifulSoup
 
-import app.subprocessors as subprocessors
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
 
 log = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
@@ -22,14 +22,14 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
         log.info('title: %s', title.text)
         if title.text not in common_titles and len(title.text) > 0:
             if doshodan:
-                subprocessors.query_shodan('http.title:"' + title.text + '"')
+                query_shodan('http.title:"' + title.text + '"')
             if docensys:
                 querystr = 'services.http.response.html_title:"' + title.text + '"'
-                subprocessors.query_censys(querystr)
+                query_censys(querystr)
             if dozoome:
-                subprocessors.query_zoomeye('title:"' + title.text + '"')
+                query_zoomeye('title:"' + title.text + '"')
             if dofofa:
-                subprocessors.query_fofa('title=' + str(title.text))
+                query_fofa('title=' + str(title.text))
         return title.text
     log.warning('failed to extract title from %s', requestobject.url)
     return None
