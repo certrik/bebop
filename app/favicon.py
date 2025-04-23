@@ -7,7 +7,7 @@ import hashlib
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-import app.getpage as getpage
+from app.getpage import main as getpage_main
 import app.subprocessors as subprocessors
 
 log = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def extract_favicon_url(domain, soup):
 
 def get_favicon_data(location, usetor=True):
     try:
-        favicondata = getpage.main(location, usetor=usetor)
+        favicondata = getpage_main(location, usetor=usetor)
         if favicondata and favicondata.status_code == 200:
             favicon64 = codecs.encode(favicondata.content, "base64")
             return favicon64
