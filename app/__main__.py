@@ -6,18 +6,18 @@ import logging
 import asyncio
 import argparse
 
-import app.getpage as getpage
-import app.headers as headers
-import app.favicon as favicon
-import app.pagespider as pagespider
-import app.title as title
-import app.portscan as portscan
-import app.configcheck as configcheck
-import app.opendir as opendir
-import app.getcert as getcert
-import app.cliart as cliart
-import app.cryptocurrency as cryptocurrency
-import app.finddomains as finddomains
+from app.getpage import main as getpage_main
+from app.headers import main as headers_main
+from app.favicon import main as favicon_main
+from app.pagespider import main as pagespider_main
+from app.title import main as title_main
+from app.portscan import main as portscan_main
+from app.configcheck import main as configcheck_main
+from app.opendir import main as opendir_main
+from app.getcert import main as getcert_main
+from app.cliart import main as cliart_main
+from app.cryptocurrency import main as cryptocurrency_main
+from app.finddomains import main as finddomains_main
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport
 
 parser = argparse.ArgumentParser()
@@ -57,7 +57,7 @@ if len(sys.argv) == 1:
     )
 
 if os.environ.get('GITHUB_ACTIONS') is None:
-    cliart.prints()
+    cliart_main.prints()
 
 if args.clearnet is True:
     logging.critical('clearnet routing enabled..')
@@ -82,7 +82,7 @@ if fqdn.endswith('.onion'):
 url_base = getbaseurl(args.target)
 logging.debug('target: %s url_base: %s fqdn: %s', args.target, url_base, fqdn)
 
-requestobject = getpage.main(args.target, usetor=torstate)
+requestobject = getpage_main(args.target, usetor=torstate)
 if requestobject is None:
     logging.error('failed to retrieve page')
     sys.exit(1)
@@ -90,31 +90,31 @@ if requestobject.status_code != 200:
     logging.warning('unexpected response code: %s', requestobject.status_code)
 if args.target.startswith('https'):
     targetport = getport(args.target)
-    getcert_data = getcert.main(fqdn, port=targetport)
+    getcert_data = getcert_main(fqdn, port=targetport)
 
-title.main(requestobject)
-header_data = headers.main(requestobject)
+title_main(requestobject)
+header_data = headers_main(requestobject)
 loop = asyncio.get_event_loop()
-loop.run_until_complete(configcheck.main(url_base, usetor=torstate))
+loop.run_until_complete(configcheck_main(url_base, usetor=torstate))
 loop.close()
-favicon_data = favicon.main(url_base, requestobject, usetor=torstate)
-pagespider_data = pagespider.main(requestobject, usetor=torstate, skip_queryurl=True)
-cryptocurrency_data = cryptocurrency.main(requestobject.text)
+favicon_data = favicon_main(url_base, requestobject, usetor=torstate)
+pagespider_data = pagespider_main(requestobject, usetor=torstate, skip_queryurl=True)
+cryptocurrency_data = cryptocurrency_main(requestobject.text)
 
 # Get the IP address from the request object
 if hasattr(requestobject, 'raw') and hasattr(requestobject.raw, 'connection') and hasattr(requestobject.raw.connection, 'sock'):
     ip_address = requestobject.raw.connection.sock.getpeername()[0]
     logging.info(f"IP address: {ip_address}")
     # Use finddomains to discover domains resolving to this IP
-    domains_data = finddomains.main(ip_address)
+    domains_data = finddomains_main(ip_address)
     if domains_data:
         logging.info(f"Found {len(domains_data)} domains resolving to {ip_address}")
         for domain in domains_data:
             logging.info(f"Domain: {domain}")
 
 for item in pagespider_data['samedomain']:
-    itemsource = getpage.main(item)
+    itemsource = getpage_main(item)
     if itemsource is not None:
-        opendir.main(itemsource)
-        cryptocurrency.main(requestobject.text)
-portscan.main(fqdn, useragent=args.useragent, usetor=torstate)
+        opendir_main(itemsource)
+        cryptocurrency_main(requestobject.text)
+portscan_main(fqdn, useragent=args.useragent, usetor=torstate)
