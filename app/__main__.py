@@ -15,7 +15,7 @@ from app.portscan import main as portscan_main
 from app.configcheck import main as configcheck_main
 from app.opendir import main as opendir_main
 from app.getcert import main as getcert_main
-from app.cliart import main as cliart_main
+from app.cliart import prints as cliart_main
 from app.cryptocurrency import main as cryptocurrency_main
 from app.finddomains import main as finddomains_main
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport
