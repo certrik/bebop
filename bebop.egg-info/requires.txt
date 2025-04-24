@@ -1,0 +1,11 @@
+requests
+beautifulsoup4
+mmh3
+cryptography
+idna
+tldextract
+censys
+shodan
+aiohttp
+aiohttp-socks
+pyOpenSSL

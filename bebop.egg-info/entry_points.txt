@@ -1,0 +1,2 @@
+[console_scripts]
+bebop = app.__main__:main
