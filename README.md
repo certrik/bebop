@@ -59,16 +59,25 @@ graph LR
 
 # methods
 
-- favicon detection
-- etag detection
+## core capabilities
+
+- favicon detection & hashing (MurmurHash3, MD5)
+- etag detection & correlation
 - response header analysis (return rare/interesting headers)
+- **Content-Security-Policy (CSP) domain extraction** 🆕
+- **CORS origin analysis** 🆕
+- **HTTP/2 protocol detection** 🆕
 - technology identification (port scanning & service identification)
+- **enhanced SSH fingerprinting (SHA256, MD5, banner analysis)** 🆕
 - spidering (return samesite, subdomain and external URLs)
 - open directory checks
 - webpage title extraction
 - email extraction
 - wallet extraction & balance fetching (xmr,btc,eth)
 - certificate trailing (serial lookup)
+- **TLS/SSL fingerprinting (cipher suites, cert fingerprints)** 🆕
+- **analytics & tracking code extraction (12+ platforms)** 🆕
+- **robots.txt & sitemap.xml deep analysis** 🆕
 
 # technicals
 
@@ -136,12 +145,22 @@ it will also attempt to discover the SSL serial and if deemed globally rare, pol
 
 ### headers
 
-[headers.py](app/headers.py) does some light analysis on response headers. there are four key outputs
+[headers.py](app/headers.py) performs comprehensive analysis on response headers with multiple intelligence gathering techniques:
 
-- `etag` - is a server etag is found, it is searched against
+**Basic Header Analysis:**
+- `etag` - if a server etag is found, it is searched against threat intel platforms
 - `server` - the value for the `Server` HTTP header
 - `cookies` - any cookies dropped by the server during the request
-- `interesting_headers` - any rare/interesting headers. essentially the response headers with exclusions - see [headers.txt](app/common/headers.txt)
+- `interesting_headers` - any rare/interesting headers (see [headers.txt](app/common/headers.txt))
+
+**🆕 Advanced Header Analysis:**
+- **Content-Security-Policy (CSP) Parsing**: Extracts all external domains from CSP directives (`connect-src`, `script-src`, `style-src`, etc.). Often reveals actual backend API domains that are hidden behind CDNs or Tor.
+- **CORS Analysis**: Parses `Access-Control-Allow-Origin` headers to identify cross-origin resource sharing configurations that may reveal related infrastructure.
+- **HTTP/2 Detection**: Identifies HTTP protocol version (1.0, 1.1, 2.0) and detects HTTP/2 Server Push via Link headers.
+- **Security Headers**: Extracts HSTS, X-Frame-Options, Permissions-Policy, NEL (Network Error Logging), and Report-To headers.
+- **Reporting Endpoints**: Discovers backend reporting URLs from CSP-report, NEL, and Report-To headers that may leak infrastructure details.
+
+All discovered domains are automatically queried against Shodan, Censys, and ZoomEye for correlation.
 
 ### open directories
 
@@ -173,9 +192,94 @@ a number of nse scripts are used - these include
 - [http-title](https://nmap.org/nsedoc/scripts/http-title.html)
 - [ssh-auth-methods](https://nmap.org/nsedoc/scripts/ssh-auth-methods.html)
 
+**🆕 Enhanced SSH Fingerprinting:**
+- Extracts SSH host key fingerprints in both SHA256 and MD5 formats
+- Identifies SSH key types (RSA, Ed25519, ECDSA, DSS)
+- Performs SSH banner analysis to detect software (OpenSSH, Dropbear, libssh, PuTTY, etc.)
+- Detects custom or modified SSH banners that may indicate security-conscious operators
+- Automatically queries Shodan for matching SSH fingerprints using HASSH and fingerprint databases
+- SSH keys rarely change, making them excellent long-term infrastructure identifiers
+
 ### title
 
 [title.py](app/title.py) simply parses the site title out of a page. the text you see on a tab ? that thing
+
+### 🆕 analytics & tracking codes
+
+[analytics.py](app/analytics.py) extracts tracking and analytics codes from web pages - a powerful correlation technique as webmasters often reuse the same tracking IDs across clearnet and .onion sites.
+
+**Supported Platforms (12+):**
+- **Google Analytics**: UA-XXXXX (Universal Analytics), G-XXXXX (GA4), GT-XXXXX (Google Tag)
+- **Google Tag Manager**: GTM-XXXXXX
+- **Facebook Pixel**: 15-16 digit pixel IDs
+- **Yandex Metrica**: 7-9 digit counter IDs
+- **Matomo/Piwik**: Site IDs and tracker URLs (tracker URLs often reveal backend infrastructure)
+- **Cloudflare Web Analytics**: 32+ character tokens
+- **Hotjar**: Site IDs for session recording/heatmaps
+- **Mixpanel**: 32-character project tokens
+- **Segment**: Write keys for customer data platform
+- **Amplitude**: API keys for product analytics
+- **Heap Analytics**: 10-12 digit app IDs
+- **Google AdSense**: Publisher IDs (ca-pub-XXXXXXXXXXXXXXXX)
+
+**Correlation Capabilities:**
+For each discovered tracking ID, bebop logs search suggestions for:
+- **PublicWWW**: Find other websites using the same tracking code
+- **BuiltWith**: Technology profiling and website relationship mapping
+- **Direct Search**: Google search for the tracking ID
+
+**Real-World Impact:**
+Finding the same Google Analytics ID on both a .onion site and a clearnet site creates a direct, verifiable link between the two properties. This is one of the most reliable deanonymization techniques.
+
+### 🆕 TLS/SSL fingerprinting
+
+[tlsfingerprint.py](app/tlsfingerprint.py) performs deep TLS/SSL analysis to create unique server fingerprints.
+
+**Capabilities:**
+- **Protocol Version Probing**: Tests support for TLS 1.0, 1.1, 1.2, and 1.3
+- **Cipher Suite Analysis**: Extracts server cipher preferences and computes fingerprint hashes
+- **Certificate Fingerprinting**: Generates SHA256, SHA1, and MD5 fingerprints of X.509 certificates
+- **Weak Configuration Detection**: Identifies outdated protocols, TLS compression (CRIME vulnerability), and other security issues
+- **Intelligence Integration**: Automatically queries Shodan, Censys, and ZoomEye for matching TLS fingerprints
+- **Tor Support**: Full SOCKS5/Tor routing for fingerprinting .onion services
+
+**Why This Matters:**
+TLS configurations are like server fingerprints - they rarely change and can uniquely identify infrastructure across different domains. A matching TLS fingerprint on a clearnet server is strong evidence of the same operator/infrastructure.
+
+**Technical Details:**
+- Simplified JA3S-style fingerprinting (cipher suite hashing)
+- Certificate persistence tracking
+- Protocol downgrade detection
+- Per-version cipher preference extraction
+
+### 🆕 robots.txt & sitemap analysis
+
+[robotsmap.py](app/robotsmap.py) performs deep analysis of robots.txt and sitemap.xml files to discover hidden site structure and sensitive paths.
+
+**robots.txt Analysis:**
+- **Path Extraction**: Collects all `Disallow` and `Allow` directives
+- **Sensitive Path Detection**: Identifies admin panels, APIs, backups, configs, and other interesting paths
+- **Comment Mining**: Extracts comments that may contain developer notes or infrastructure hints
+- **Sitemap Discovery**: Finds sitemap URLs declared in robots.txt
+- **User-Agent Analysis**: Identifies custom bot handling and crawl-delay configurations
+- **Pattern Analysis**: Automatically flags paths containing keywords like `admin`, `api`, `backup`, `private`, `secret`, `config`
+
+**sitemap.xml Analysis:**
+- **URL Extraction**: Parses all URLs from sitemaps (with metadata like priority, change frequency)
+- **Sitemap Index Handling**: Recursively fetches and parses sitemap indexes
+- **URL Categorization**: Automatically identifies admin/API/login URLs
+- **Sub-sitemap Processing**: Fetches up to 5 sub-sitemaps from sitemap indexes
+- **Standard Location Fallback**: Tries `/sitemap.xml` if not found in robots.txt
+
+**Why This Matters:**
+robots.txt and sitemaps often reveal the entire site structure including:
+- Hidden admin interfaces (`/wp-admin`, `/administrator`, `/panel`)
+- API endpoints (`/api/v1/`, `/graphql`)
+- Development/staging paths (`/dev`, `/test`, `/staging`)
+- Backup files (`/backup.sql`, `/dump.tar.gz`)
+- Configuration files (`/.env`, `/config.php`)
+
+These paths are typically not linked from the main site but are exposed through robots.txt for crawler guidance.
 
 # building
 
