@@ -153,7 +153,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
 
     for header in requestobject.headers:
         if header.lower() in ['etag', 'server']:
-            interesting_headers.append(header)
+            interesting_headers.append(header.lower())
             logger.info(f"Found interesting header: {header}")
 
     findings['interesting_headers'] = interesting_headers
