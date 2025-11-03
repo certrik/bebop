@@ -18,6 +18,9 @@ from app.getcert import main as getcert_main
 from app.cliart import prints as cliart_main
 from app.cryptocurrency import main as cryptocurrency_main
 from app.finddomains import main as finddomains_main
+from app.analytics import main as analytics_main
+from app.robotsmap import main as robotsmap_main
+from app.tlsfingerprint import main as tlsfingerprint_main
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport
 
 
@@ -100,6 +103,16 @@ def main():
     favicon_data = favicon_main(url_base, requestobject, usetor=torstate)
     pagespider_data = pagespider_main(requestobject, usetor=torstate, skip_queryurl=True)
     cryptocurrency_data = cryptocurrency_main(requestobject.text)
+
+    # NEW: Analytics and tracking code extraction
+    analytics_data = analytics_main(requestobject)
+
+    # NEW: Robots.txt and sitemap analysis
+    robotsmap_data = robotsmap_main(url_base, usetor=torstate)
+
+    # NEW: TLS fingerprinting (for HTTPS sites)
+    if args.target.startswith('https'):
+        tlsfingerprint_data = tlsfingerprint_main(fqdn, port=targetport, usetor=torstate)
 
     # Get the IP address from the request object
     if hasattr(requestobject, 'raw') and hasattr(requestobject.raw, 'connection') and hasattr(requestobject.raw.connection, 'sock'):
