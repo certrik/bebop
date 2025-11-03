@@ -48,7 +48,7 @@ def query_zoomeye(squery):
     params = {'query': squery}
 
     try:
-        results = requests.get('https://api.zoomeye.hk/host/search',
+        results = requests.get('https://api.zoomeye.ai/host/search',
                                params=params,
                                headers=headers)
         results.raise_for_status()
