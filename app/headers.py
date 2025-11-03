@@ -138,7 +138,7 @@ def analyze_security_headers(requestobject):
     return findings
 
 
-def main(requestobject, doshodan=False, docensys=False, dozoome=False, dofofa=False):
+def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True):
     """
     Process HTTP headers from a request
     """
