@@ -21,7 +21,7 @@ setup(
         'aiohttp-socks',
         'pyOpenSSL',
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     entry_points={
         'console_scripts': [
             'bebop=app.__main__:main',
