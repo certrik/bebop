@@ -53,8 +53,10 @@ jobs:
           URLSCAN_API_KEY: ${{ secrets.URLSCAN_API_KEY }}
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
           ZOOMEYE_API_KEY: ${{ secrets.ZOOMEYE_API_KEY }}
-      - name: upload artifact
+      - name: upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: log
-          path: /tmp/log.txt
+          name: bebop-results
+          path: |
+            /tmp/log.txt
+            /tmp/bebop-report.html
