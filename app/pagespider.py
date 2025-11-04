@@ -20,12 +20,22 @@ def get_links(soup, base_url):
     protocol = 'https:' if base_url.scheme == 'https' else 'http:'
     for link in dedup_links:
         log.debug('found link: %s', link)
+
+        # Handle mailto separately
+        if link.startswith('mailto:'):
+            emails.append(link.replace('mailto:', ''))
+            continue
+
+        # Skip non-HTTP(S) schemes that would cause crashes
+        if link.startswith(('javascript:', '#', 'tel:', 'data:', 'file:', 'ftp:', 'about:')):
+            log.debug('skipping non-HTTP(S) link: %s', link)
+            continue
+
         if link.startswith('//'):
             link = protocol + link
         parsed_link = urllib.parse.urlparse(link)
-        if link.startswith('mailto:'):
-            emails.append(link.replace('mailto:', ''))
-        elif parsed_link.netloc == base_url.netloc or parsed_link.netloc == '':
+
+        if parsed_link.netloc == base_url.netloc or parsed_link.netloc == '':
             if parsed_link.netloc == '':
                 link = urllib.parse.urljoin(base_url.geturl(), link)
             same_domain_links.append(link)

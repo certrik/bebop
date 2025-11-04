@@ -127,24 +127,79 @@ interesting_paths = [
     {'uri': '/.ini', 'code': 200, 'text': None}
 ]
 
-async def fetch(location, path, session):
+async def fetch(location, path, session, results_list):
     uri = location + path['uri']
     log.debug('scanning %s - expecting %s', uri, path['code'])
     try:
         async with session.get(uri) as response:
             text = await response.text()
+            matched = False
+            matched_text = None
+
             if response.status == path['code']:
                 if path['text'] is None:
                     log.info(f'found {path["code"]} at {uri}')
+                    matched = True
                 elif path['text'] in text:
                     log.info(f'found {path["code"]} at {uri}')
+                    matched = True
+                    matched_text = path['text']
                 else:
                     log.debug(f'found {path["code"]} at {uri} but no match for {path["text"]}')
             else:
                 log.debug(f'found {response.status} at {uri}')
+
+            # Store result for reporting
+            if matched:
+                result = {
+                    'path': path['uri'],
+                    'status_code': response.status,
+                    'expected_code': path['code'],
+                    'description': _get_path_description(path['uri']),
+                    'matched_text': matched_text
+                }
+                results_list.append(result)
+
     except Exception as e:
         log.error('error fetching %s - %s', uri, e)
         logging.debug(e)
+
+
+def _get_path_description(uri):
+    """Get human-readable description for a path"""
+    descriptions = {
+        '/server-status': 'Apache Server Status',
+        '/install/index.php': 'Installation Wizard',
+        '/server-info': 'Apache Server Info',
+        '/wp-login.php': 'WordPress Login',
+        '/xmlrpc.php': 'XML-RPC Endpoint',
+        '/phpinfo.php': 'PHP Info Page',
+        '/cpanel': 'cPanel',
+        '/phpmyadmin/': 'phpMyAdmin',
+        '/phpsysinfo/': 'phpSysInfo',
+        '/adminer/': 'Adminer Database',
+        '/joomla': 'Joomla CMS',
+        '/drupal': 'Drupal CMS',
+        '/jenkins': 'Jenkins CI/CD',
+        '/grafana': 'Grafana Dashboard',
+        '/kibana': 'Kibana Dashboard',
+        '/.well-known/security.txt': 'Security Contact Info',
+        '/manager/html': 'Apache Tomcat Manager',
+        '/robots.txt': 'Robots.txt',
+        '/sitemap.xml': 'Sitemap XML',
+        '/admin': 'Admin Panel',
+        '/administrator': 'Administrator Panel',
+        '/wp-admin': 'WordPress Admin',
+        '/.git': 'Git Repository',
+        '/.env': 'Environment Config',
+        '/config.php': 'PHP Configuration',
+        '/backup.sql': 'SQL Backup',
+        '/backup.tar.gz': 'Archive Backup',
+        '/phpinfo.php': 'PHP Info',
+        '/swagger-ui.html': 'Swagger API Docs',
+        '/.DS_Store': 'macOS Metadata',
+    }
+    return descriptions.get(uri, 'Discovered Path')
 
 async def main(location, usetor=True, max_concurrent_requests=5):
     if location.endswith('/'):
@@ -158,13 +213,19 @@ async def main(location, usetor=True, max_concurrent_requests=5):
     timeout = ClientTimeout(total=30)
     sem = asyncio.Semaphore(max_concurrent_requests)
     connector = ProxyConnector.from_url(reqproxies.get('https')) if reqproxies else None
+
+    # List to collect discovered paths
+    results = []
+
     async with ClientSession(headers={'User-Agent': useragentstr}, timeout=timeout, trust_env=True, connector=connector) as session:
         catch_all_detected = await is_catch_all(session, location)
         if catch_all_detected:
             log.warning("catch-all response-code behavior detected - path-based checks will be skipped")
-            return
+            return results
         tasks = []
         for path in interesting_paths:
             async with sem:
-                tasks.append(fetch(location, path, session))
+                tasks.append(fetch(location, path, session, results))
         await asyncio.gather(*tasks)
+
+    return results
