@@ -5,6 +5,8 @@ import sys
 import logging
 import asyncio
 import argparse
+import datetime
+import time
 
 from app.getpage import main as getpage_main
 from app.headers import main as headers_main
@@ -18,103 +20,181 @@ from app.getcert import main as getcert_main
 from app.cliart import prints as cliart_main
 from app.cryptocurrency import main as cryptocurrency_main
 from app.finddomains import main as finddomains_main
+from app.analytics import main as analytics_main
+from app.robotsmap import main as robotsmap_main
+from app.tlsfingerprint import main as tlsfingerprint_main
+from app.htmlreport import generate_html_report, save_html_report
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport
 
-parser = argparse.ArgumentParser()
-parser.add_argument('target', help='target address')
-parser.add_argument('--loglevel',
-                    help='set logging level',
-                    default='INFO',
-                    choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'])
-parser.add_argument('--clearnet',
-                    help='route traffic over clearnet (no tor)',
-                    action='store_true',
-                    default=False)
-parser.add_argument('--useragent',
-                    help='set user-agent',
-                    default='Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0')
-args = parser.parse_args()
 
-logging.basicConfig(
-    level=logging.getLevelName(args.loglevel),
-    format='%(asctime)-11s %(levelname)-8s %(lineno)d:%(filename)-15s %(funcName)-25s %(message)s',
-    datefmt="%I:%M:%S%p",
-)
+def main():
+    # Start timing
+    start_time = time.time()
 
-if len(sys.argv) == 1:
-    print(
-    r'''
-                __                     
-        _(\    |@@|                        __         __              
-        (__/\__ \--/ __                    / /_  ___  / /_  ____  ____ 
-            \___|----|  |   __             / __ \/ _ \/ __ \/ __ \/ __ \\
-                \ }{ /\ )_ / _\           / /_/ /  __/ /_/ / /_/ / /_/ /
-                /\__/\ \__O (__          /_.___/\___/_.___/\____/ .___/ 
-            (--/\--)    \__/                                /_/      
-            _)(  )(_                  
-            `---''---`                 hidden service safari 👀 🧅 💻 
-    '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target', help='target address')
+    parser.add_argument('--loglevel',
+                        help='set logging level',
+                        default='INFO',
+                        choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'])
+    parser.add_argument('--clearnet',
+                        help='route traffic over clearnet (no tor)',
+                        action='store_true',
+                        default=False)
+    parser.add_argument('--useragent',
+                        help='set user-agent',
+                        default='Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0')
+    parser.add_argument('--html-report',
+                        help='generate HTML report (file path)',
+                        default=None)
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.getLevelName(args.loglevel),
+        format='%(asctime)-11s %(levelname)-8s %(lineno)d:%(filename)-15s %(funcName)-25s %(message)s',
+        datefmt="%I:%M:%S%p",
     )
 
-if os.environ.get('GITHUB_ACTIONS') is None:
-    cliart_main.prints()
+    if len(sys.argv) == 1:
+        print(
+        r'''
+                __
+        _(\    |@@|                        __         __
+        (__/\__ \--/ __                    / /_  ___  / /_  ____  ____
+            \___|----|  |   __             / __ \/ _ \/ __ \/ __ \/ __ \
+                \ }{ /\ )_ / _\           / /_/ /  __/ /_/ / /_/ / /_/ /
+                /\__/\ \__O (__          /_.___/\___/_.___/\____/ .___/
+            (--/\--)    \__/                                /_/
+            _)(  )(_
+            `---''---`                 hidden service safari 👀 🧅 💻
+        '''
+        )
 
-if args.clearnet is True:
-    logging.critical('clearnet routing enabled..')
-    torstate = False
-else:
-    logging.debug('tor routing enabled..')
-    torstate = True
-    preflight()
+    if os.environ.get('GITHUB_ACTIONS') is None:
+        cliart_main.prints()
 
-if not validurl(args.target):
-    if validurl('http://' + args.target):
-        args.target = 'http://' + args.target
-        logging.warning('no protocol provided, appending (now: %s)', args.target)
+    if args.clearnet is True:
+        logging.critical('clearnet routing enabled..')
+        torstate = False
     else:
-        logging.critical('failed to parse url - ensure a protocol is specified')
+        logging.debug('tor routing enabled..')
+        torstate = True
+        preflight()
+
+    if not validurl(args.target):
+        if validurl('http://' + args.target):
+            args.target = 'http://' + args.target
+            logging.warning('no protocol provided, appending (now: %s)', args.target)
+        else:
+            logging.critical('failed to parse url - ensure a protocol is specified')
+            sys.exit(1)
+    fqdn = getfqdn(args.target)
+    if fqdn.endswith('.onion'):
+        if torstate is False:
+            logging.critical('you cannot disable tor routing if your target is a .onion service!')
+            sys.exit(1)
+    url_base = getbaseurl(args.target)
+    logging.debug('target: %s url_base: %s fqdn: %s', args.target, url_base, fqdn)
+
+    requestobject = getpage_main(args.target, usetor=torstate)
+    if requestobject is None:
+        logging.error('failed to retrieve page')
         sys.exit(1)
-fqdn = getfqdn(args.target)
-if fqdn.endswith('.onion'):
-    if torstate is False:
-        logging.critical('you cannot disable tor routing if your target is a .onion service!')
-        sys.exit(1)
-url_base = getbaseurl(args.target)
-logging.debug('target: %s url_base: %s fqdn: %s', args.target, url_base, fqdn)
+    if requestobject.status_code != 200:
+        logging.warning('unexpected response code: %s', requestobject.status_code)
+    if args.target.startswith('https'):
+        targetport = getport(args.target)
+        getcert_data = getcert_main(fqdn, port=targetport)
 
-requestobject = getpage_main(args.target, usetor=torstate)
-if requestobject is None:
-    logging.error('failed to retrieve page')
-    sys.exit(1)
-if requestobject.status_code != 200:
-    logging.warning('unexpected response code: %s', requestobject.status_code)
-if args.target.startswith('https'):
-    targetport = getport(args.target)
-    getcert_data = getcert_main(fqdn, port=targetport)
+    title_data = title_main(requestobject)
+    header_data = headers_main(requestobject)
+    discovered_paths = asyncio.run(configcheck_main(url_base, usetor=torstate))
+    favicon_data = favicon_main(url_base, requestobject, usetor=torstate)
+    pagespider_data = pagespider_main(requestobject, usetor=torstate, skip_queryurl=True)
+    cryptocurrency_data = cryptocurrency_main(requestobject.text)
 
-title_main(requestobject)
-header_data = headers_main(requestobject)
-loop = asyncio.get_event_loop()
-loop.run_until_complete(configcheck_main(url_base, usetor=torstate))
-loop.close()
-favicon_data = favicon_main(url_base, requestobject, usetor=torstate)
-pagespider_data = pagespider_main(requestobject, usetor=torstate, skip_queryurl=True)
-cryptocurrency_data = cryptocurrency_main(requestobject.text)
+    # NEW: Analytics and tracking code extraction
+    analytics_data = analytics_main(requestobject)
 
-# Get the IP address from the request object
-if hasattr(requestobject, 'raw') and hasattr(requestobject.raw, 'connection') and hasattr(requestobject.raw.connection, 'sock'):
-    ip_address = requestobject.raw.connection.sock.getpeername()[0]
-    logging.info(f"IP address: {ip_address}")
-    # Use finddomains to discover domains resolving to this IP
-    domains_data = finddomains_main(ip_address)
-    if domains_data:
-        logging.info(f"Found {len(domains_data)} domains resolving to {ip_address}")
-        for domain in domains_data:
-            logging.info(f"Domain: {domain}")
+    # NEW: Robots.txt and sitemap analysis
+    robotsmap_data = robotsmap_main(url_base, usetor=torstate)
 
-for item in pagespider_data['samedomain']:
-    itemsource = getpage_main(item)
-    if itemsource is not None:
-        opendir_main(itemsource)
-        cryptocurrency_main(requestobject.text)
-portscan_main(fqdn, useragent=args.useragent, usetor=torstate)
+    # NEW: TLS fingerprinting (for HTTPS sites)
+    tlsfingerprint_data = None
+    if args.target.startswith('https'):
+        tlsfingerprint_data = tlsfingerprint_main(fqdn, port=targetport, usetor=torstate)
+
+    # Get the IP address from the request object
+    domains_data = []
+    if hasattr(requestobject, 'raw') and hasattr(requestobject.raw, 'connection') and hasattr(requestobject.raw.connection, 'sock'):
+        ip_address = requestobject.raw.connection.sock.getpeername()[0]
+        logging.info(f"IP address: {ip_address}")
+        # Use finddomains to discover domains resolving to this IP
+        domains_data = finddomains_main(ip_address) or []
+        if domains_data:
+            logging.info(f"Found {len(domains_data)} domains resolving to {ip_address}")
+            for domain in domains_data:
+                logging.info(f"Domain: {domain}")
+
+    for item in pagespider_data['samedomain']:
+        itemsource = getpage_main(item)
+        if itemsource is not None:
+            opendir_main(itemsource)
+            cryptocurrency_main(requestobject.text)
+    portscan_data = portscan_main(fqdn, useragent=args.useragent, usetor=torstate)
+
+    # Calculate scan duration
+    end_time = time.time()
+    duration = end_time - start_time
+    duration_str = f"{int(duration // 60)}m {int(duration % 60)}s"
+
+    # Generate HTML report if requested
+    if args.html_report or (os.environ.get('GITHUB_ACTIONS') and args.loglevel == 'DEBUG'):
+        logging.info("Generating HTML report...")
+
+        # Prepare scan data for report
+        scan_data = {
+            'target': args.target,
+            'scan_date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'duration': duration_str,
+            'summary': {
+                'fqdn': fqdn,
+                'status_code': requestobject.status_code,
+                'open_ports_count': len(portscan_data.get('ports', [])) if portscan_data else 0,
+                'paths_discovered_count': len(discovered_paths) if discovered_paths else 0,
+                'use_tor': torstate
+            },
+            'discovered_paths': discovered_paths or [],
+            'headers': header_data,
+            'all_headers': dict(requestobject.headers),  # Pass all raw headers
+            'title': title_data,
+            'certificate': getcert_data if args.target.startswith('https') else None,
+            'ports': portscan_data,
+            'favicon': favicon_data,
+            'analytics': analytics_data,
+            'robotsmap': robotsmap_data,
+            'tls_fingerprint': tlsfingerprint_data,
+            'cryptocurrency': cryptocurrency_data,
+            'pagespider': pagespider_data,
+            'domains': domains_data
+        }
+
+        # Generate HTML
+        html_content = generate_html_report(scan_data)
+
+        # Determine output path
+        if args.html_report:
+            output_path = args.html_report
+        else:
+            # Default path for GitHub Actions
+            output_path = '/tmp/bebop-report.html'
+
+        # Save report
+        if save_html_report(html_content, output_path):
+            logging.info(f"✅ HTML report saved to: {output_path}")
+        else:
+            logging.error("❌ Failed to save HTML report")
+
+
+if __name__ == '__main__':
+    main()
