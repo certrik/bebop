@@ -343,71 +343,106 @@ def _generate_discovered_paths_section(data):
 def _generate_headers_section(data):
     """Generate HTTP headers section"""
     headers_data = data.get('headers', {})
+    all_headers = data.get('all_headers', {})
 
-    if not headers_data:
+    if not headers_data and not all_headers:
         return ""
 
-    # Interesting headers
-    interesting = headers_data.get('interesting_headers', [])
-    interesting_html = ""
-    if interesting:
-        for header in interesting:
-            interesting_html += f'<span class="badge badge-info">{escape(header)}</span>'
-    else:
-        interesting_html = "<span class='empty-state'>None detected</span>"
+    # All HTTP Headers with values
+    all_headers_html = ""
+    if all_headers:
+        # Create a table for all headers
+        rows = ""
+        for header_name, header_value in sorted(all_headers.items()):
+            # Highlight interesting headers
+            is_interesting = header_name.lower() in ['server', 'etag', 'x-powered-by', 'x-aspnet-version', 'x-generator']
+            row_class = "style='background: #2a2a3e;'" if is_interesting else ""
+
+            rows += f"""
+            <tr {row_class}>
+                <td><strong>{escape(header_name)}</strong></td>
+                <td><code>{escape(header_value)}</code></td>
+            </tr>
+            """
+
+        all_headers_html = f"""
+        <div class="subsection">
+            <h3 class="subsection-title">All HTTP Headers</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Header Name</th>
+                            <th>Header Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
 
     # CSP domains
     csp_domains = headers_data.get('csp_domains', [])
     csp_html = ""
     if csp_domains:
+        csp_html += "<div class='subsection'><h3 class='subsection-title'>CSP Domains (Backend Servers Detected)</h3>"
+        csp_html += "<p style='color: #8b9dc3; margin-bottom: 10px;'>These domains were found in Content-Security-Policy headers and may reveal backend infrastructure:</p>"
         for domain in csp_domains:
-            csp_html += f'<div class="list-item">{escape(domain)}</div>'
-    else:
-        csp_html = "<div class='empty-state'>No CSP domains found</div>"
+            csp_html += f'<div class="list-item"><span class="badge badge-warning">🔍</span> {escape(domain)}</div>'
+        csp_html += "</div>"
 
     # CORS
     cors_origin = headers_data.get('cors_origin')
-    cors_html = f"<div class='list-item'>{escape(cors_origin)}</div>" if cors_origin else "<div class='empty-state'>No CORS headers</div>"
+    cors_html = ""
+    if cors_origin:
+        cors_html = f"""
+        <div class='subsection'>
+            <h3 class='subsection-title'>CORS Origin (Cross-Origin Access)</h3>
+            <p style='color: #8b9dc3; margin-bottom: 10px;'>The server allows cross-origin requests from:</p>
+            <div class='list-item'><span class="badge badge-warning">🔗</span> {escape(cors_origin)}</div>
+        </div>
+        """
 
     # HTTP/2 info
     http2_info = headers_data.get('http2_info', {})
     http2_html = ""
-    if http2_info:
+    if http2_info and http2_info.get('version') != 'HTTP/1.1':
+        http2_html = "<div class='subsection'><h3 class='subsection-title'>HTTP Protocol Info</h3><div class='info-grid'>"
         for key, value in http2_info.items():
             http2_html += f"""
             <div class="info-item">
                 <div class="label">{escape(key.replace('_', ' ').title())}</div>
-                <div class="value">{escape(str(value))}</div>
+                <div class="value"><span class="badge badge-success">{escape(str(value))}</span></div>
             </div>
             """
-    else:
-        http2_html = "<div class='empty-state'>HTTP/1.1</div>"
+        http2_html += "</div></div>"
+
+    # Security headers analysis
+    security_headers = headers_data.get('security_headers', {})
+    security_html = ""
+    if security_headers:
+        security_html = "<div class='subsection'><h3 class='subsection-title'>Security Headers Analysis</h3><div class='info-grid'>"
+        for key, value in security_headers.items():
+            badge_class = "badge-success" if value else "badge-danger"
+            security_html += f"""
+            <div class="info-item">
+                <div class="label">{escape(key.replace('_', ' ').title())}</div>
+                <div class="value"><span class="badge {badge_class}">{'✓ Present' if value else '✗ Missing'}</span></div>
+            </div>
+            """
+        security_html += "</div></div>"
 
     html = f"""
     <div class="section">
         <h2 class="section-title">📋 HTTP Headers Analysis</h2>
-
-        <div class="subsection">
-            <h3 class="subsection-title">Interesting Headers</h3>
-            {interesting_html}
-        </div>
-
-        <div class="subsection">
-            <h3 class="subsection-title">CSP Domains</h3>
-            {csp_html}
-        </div>
-
-        <div class="subsection">
-            <h3 class="subsection-title">CORS Origin</h3>
-            {cors_html}
-        </div>
-
-        <div class="subsection">
-            <h3 class="subsection-title">HTTP Protocol Info</h3>
-            <div class="info-grid">
-                {http2_html}
-            </div>
-        </div>
+        {all_headers_html}
+        {csp_html}
+        {cors_html}
+        {http2_html}
+        {security_html}
     </div>
     """
     return html
@@ -417,13 +452,13 @@ def _generate_title_section(data):
     """Generate page title section"""
     title = data.get('title')
 
-    if not title:
-        return ""
+    # Always show this section, even if title is empty
+    title_content = escape(title) if title else "<span style='color: #666; font-style: italic;'>No title found (empty &lt;title&gt; tag)</span>"
 
     html = f"""
     <div class="section">
         <h2 class="section-title">📄 Page Title</h2>
-        <div class="code-block">{escape(title)}</div>
+        <div class="code-block">{title_content}</div>
     </div>
     """
     return html
@@ -444,25 +479,53 @@ def _generate_ports_section(data):
         product = port.get('product', '')
         version = port.get('version', '')
         ostype = port.get('ostype', '')
+        confidence = port.get('confidence', '')
+        banner = port.get('banner', '')
 
+        # Build product info with CPE if available
+        product_info = f"{escape(product)} {escape(version)}".strip()
+        cpe_list = port.get('cpe', [])
+        if cpe_list:
+            product_info += f"<br><small style='color: #8b9dc3;'>CPE: {escape(cpe_list[0] if isinstance(cpe_list, list) else cpe_list)}</small>"
+
+        # SSH fingerprints with detailed display
         ssh_fp = port.get('ssh_fingerprints')
         ssh_html = ""
         if ssh_fp:
-            ssh_html = f"<br><small>🔑 SSH Fingerprints: {len(ssh_fp.get('sha256', []))} SHA256, {len(ssh_fp.get('md5', []))} MD5</small>"
+            sha256_fps = ssh_fp.get('sha256', [])
+            md5_fps = ssh_fp.get('md5', [])
+            ssh_html = "<br><div style='margin-top: 8px; padding: 8px; background: #1e1e2e; border-radius: 4px;'>"
+            ssh_html += "<strong style='color: #667eea;'>🔑 SSH Fingerprints:</strong><br>"
+            if sha256_fps:
+                for fp in sha256_fps:
+                    ssh_html += f"<small>SHA256: <code>{escape(fp)}</code></small><br>"
+            if md5_fps:
+                for fp in md5_fps:
+                    ssh_html += f"<small>MD5: <code>{escape(fp)}</code></small><br>"
+            ssh_html += "</div>"
+
+        # Banner info
+        banner_html = ""
+        if banner:
+            banner_html = f"<br><div style='margin-top: 8px;'><strong>Banner:</strong><br><code style='background: #1e1e2e; padding: 4px; border-radius: 2px;'>{escape(banner[:200])}</code></div>"
 
         rows += f"""
         <tr>
-            <td><strong>{escape(str(port_num))}</strong></td>
+            <td><strong style='color: #667eea; font-size: 1.1em;'>{escape(str(port_num))}</strong></td>
             <td><span class="badge badge-success">{escape(service)}</span></td>
-            <td>{escape(product)} {escape(version)}</td>
+            <td>{product_info}</td>
             <td>{escape(ostype) if ostype else '-'}</td>
-            <td>{escape(port.get('banner', '') if port.get('banner') else '-')}{ssh_html}</td>
+            <td>
+                {f'<span class="badge badge-info">Confidence: {escape(confidence)}</span>' if confidence else ''}
+                {banner_html}
+                {ssh_html}
+            </td>
         </tr>
         """
 
     html = f"""
     <div class="section">
-        <h2 class="section-title">🔌 Open Ports</h2>
+        <h2 class="section-title">🔌 Open Ports & Services</h2>
         <div class="table-container">
             <table>
                 <thead>
@@ -480,7 +543,7 @@ def _generate_ports_section(data):
             </table>
         </div>
         <div class="meta" style="margin-top: 15px; color: #666;">
-            Scan completed in {ports_data.get('time', 'N/A')} seconds
+            Nmap scan completed in {ports_data.get('time', 'N/A')} seconds
         </div>
     </div>
     """
@@ -494,34 +557,45 @@ def _generate_certificate_section(data):
     if not cert:
         return ""
 
+    # Get all certificate fields dynamically
+    cert_fields = []
+    important_fields = ['CN', 'O', 'OU', 'L', 'ST', 'C', 'issuer', 'notBefore', 'notAfter', 'serialNumber']
+    field_labels = {
+        'CN': 'Common Name (CN)',
+        'O': 'Organization (O)',
+        'OU': 'Organizational Unit (OU)',
+        'L': 'Locality (L)',
+        'ST': 'State/Province (ST)',
+        'C': 'Country (C)',
+        'issuer': 'Issuer',
+        'notBefore': 'Valid From',
+        'notAfter': 'Valid Until',
+        'serialNumber': 'Serial Number'
+    }
+
+    for field in important_fields:
+        if field in cert and cert[field]:
+            cert_fields.append((field_labels.get(field, field), cert[field]))
+
+    # Add any other fields not in the important list
+    for key, value in cert.items():
+        if key not in important_fields and value:
+            cert_fields.append((key, value))
+
+    info_items = ""
+    for label, value in cert_fields:
+        info_items += f"""
+        <div class="info-item">
+            <div class="label">{escape(label)}</div>
+            <div class="value"><code>{escape(str(value))}</code></div>
+        </div>
+        """
+
     html = f"""
     <div class="section">
         <h2 class="section-title">🔒 SSL/TLS Certificate</h2>
         <div class="info-grid">
-            <div class="info-item">
-                <div class="label">Common Name (CN)</div>
-                <div class="value">{escape(cert.get('CN', 'N/A'))}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Organization (O)</div>
-                <div class="value">{escape(cert.get('O', 'N/A'))}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Issuer</div>
-                <div class="value">{escape(cert.get('issuer', 'N/A'))}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Valid From</div>
-                <div class="value">{escape(cert.get('notBefore', 'N/A'))}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Valid Until</div>
-                <div class="value">{escape(cert.get('notAfter', 'N/A'))}</div>
-            </div>
-            <div class="info-item">
-                <div class="label">Serial Number</div>
-                <div class="value">{escape(cert.get('serialNumber', 'N/A'))}</div>
-            </div>
+            {info_items}
         </div>
     </div>
     """

@@ -166,6 +166,7 @@ def main():
             },
             'discovered_paths': discovered_paths or [],
             'headers': header_data,
+            'all_headers': dict(requestobject.headers),  # Pass all raw headers
             'title': title_data,
             'certificate': getcert_data if args.target.startswith('https') else None,
             'ports': portscan_data,
