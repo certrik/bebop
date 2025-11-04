@@ -24,7 +24,7 @@ from app.analytics import main as analytics_main
 from app.robotsmap import main as robotsmap_main
 from app.tlsfingerprint import main as tlsfingerprint_main
 from app.htmlreport import generate_html_report, save_html_report
-from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport
+from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport, refang_url
 
 
 def main():
@@ -72,6 +72,9 @@ def main():
 
     if os.environ.get('GITHUB_ACTIONS') is None:
         cliart_main.prints()
+
+    # Refang URL if it's defanged (hxxp, [.], etc.)
+    args.target = refang_url(args.target)
 
     if args.clearnet is True:
         logging.critical('clearnet routing enabled..')

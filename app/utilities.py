@@ -13,6 +13,65 @@ log = logging.getLogger(__name__)
 
 useragentstr = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15'
 
+def refang_url(url):
+    """
+    Convert defanged URLs back to their original form.
+
+    Handles common defanging patterns:
+    - hxxp -> http
+    - hxxps -> https
+    - [.] -> .
+    - [dot] -> .
+    - (.) -> .
+    - {.} -> .
+    - [://] -> ://
+    - (:) -> :
+
+    Args:
+        url: Potentially defanged URL string
+
+    Returns:
+        Refanged URL string
+
+    Examples:
+        hxxp://example[.]com -> http://example.com
+        hxxps://malware[dot]onion -> https://malware.onion
+        http[:]//example(.)com -> http://example.com
+    """
+    if not url:
+        return url
+
+    original_url = url
+
+    # Replace hxxp/hxxps with http/https
+    url = re.sub(r'\bhxxps?\b', lambda m: m.group(0).replace('xx', 'tt'), url, flags=re.IGNORECASE)
+
+    # Replace [://] with ://
+    url = url.replace('[://]', '://')
+    url = url.replace('[:]', ':')
+    url = url.replace('(:)', ':')
+    url = url.replace('{:}', ':')
+
+    # Replace various dot representations with actual dots
+    url = url.replace('[.]', '.')
+    url = url.replace('[dot]', '.')
+    url = url.replace('[DOT]', '.')
+    url = url.replace('(.)','.')
+    url = url.replace('{.}', '.')
+    url = url.replace('(.)', '.')
+    url = url.replace(' dot ', '.')
+    url = url.replace(' DOT ', '.')
+
+    # Replace [/] with /
+    url = url.replace('[/]', '/')
+
+    # Log if defanging was detected
+    if url != original_url:
+        log.info(f"Refanged URL: {original_url} -> {url}")
+
+    return url
+
+
 def nsresolve(fqdn):
     try:
         return socket.gethostbyname(fqdn)

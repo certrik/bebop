@@ -332,8 +332,14 @@ You can use GitHub Actions to run the project directly from your browser without
 3. Click "Run workflow"
 4. Fill in the required parameters:
    - `web_location`: The URL or .onion address you want to scan
-   - `loglevel` (optional): Set to "DEBUG" for verbose output
+   - `loglevel` (optional): Set to "DEBUG" for verbose output (also generates HTML report)
    - `useragent` (optional): Custom user agent string
+
+**🛡️ Defanged URL Support**: You can safely input defanged URLs (commonly used when sharing IOCs/malicious URLs) and bebop will automatically refang them:
+   - `hxxp://example[.]com` → `http://example.com`
+   - `hxxps://malware[dot]onion` → `https://malware.onion`
+   - `http[:]//site(.)com` → `http://site.com`
+   - Supports: `hxxp/hxxps`, `[.]`, `[dot]`, `(.)`, `{.}`, `[://]`, `[:]`, and more
 
 ### Environment Variables
 
@@ -355,9 +361,16 @@ The GitHub Actions workflow automatically sets up a Tor proxy for you. If you wa
 ### Output
 
 After the workflow completes:
-1. The scan results will be available as an artifact
-2. You can download the log file to see the complete output
-3. The results will include all the standard bebop outputs (favicon detection, headers, port scans, etc.)
+1. **Download the "bebop-results" artifact** containing:
+   - `log.txt` - Complete scan output with all findings
+   - `bebop-report.html` - Professional HTML report (when loglevel=DEBUG)
+2. The HTML report includes:
+   - All HTTP headers with values
+   - Discovered file paths with response codes
+   - Port scan results with service banners
+   - TLS/SSL fingerprints
+   - Analytics tracking codes
+   - And all other scan results in an easy-to-read format
 
 ## subprocessors
 
