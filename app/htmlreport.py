@@ -476,11 +476,11 @@ def _generate_ports_section(data):
     for port in ports:
         port_num = port.get('port', 'N/A')
         service = port.get('name', 'unknown')
-        product = port.get('product', '')
-        version = port.get('version', '')
-        ostype = port.get('ostype', '')
-        confidence = port.get('confidence', '')
-        banner = port.get('banner', '')
+        product = port.get('product') or ''
+        version = port.get('version') or ''
+        ostype = port.get('ostype') or ''
+        confidence = port.get('confidence') or ''
+        banner = port.get('banner') or ''
 
         # Build product info with CPE if available
         product_info = f"{escape(product)} {escape(version)}".strip()
