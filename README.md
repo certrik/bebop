@@ -405,7 +405,7 @@ used 23 out of 1000000000 avail credits for current month
 
 to avoid consuming unneccesary credits polling subprocessors a list of common results for a few tasks are stored as text files within this repo.
 
-this includes a list of the top 1000 favicon fuzzyhashes, top 1500 ssl serials and the top 1000 server titles - if a match is found against these, it's unlikely to be a useful enough data-point to bother polling the likes of <todo> for
+this includes a list of the top 1000 favicon fuzzyhashes, top 1500 ssl serials and the top 1000 server titles - if a match is found against these, it's unlikely to be a useful enough data-point to bother polling the likes of shodan, censys, zoomeye, and fofa for
 
 these files should be updated every now and then. to do so, run the following
 
