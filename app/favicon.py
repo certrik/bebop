@@ -71,20 +71,25 @@ def process_favicon(domain, requestobject, usetor=True):
             faviconmmh3 = getmmh3(favicon64)
             faviconmd5 = getmd5(favicon64)
             log.info('favicon mmh3: %s, md5: %s', faviconmmh3, faviconmd5)
-            return faviconmmh3, faviconmd5
+            return faviconmmh3, faviconmd5, location
         else:
             log.info('no favicon data found for %s', domain)
     except Exception as e:
         log.error("error processing favicon for %s: %s", domain, e)
-    return None, None
+    return None, None, None
 
 def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoome=True, dofofa=True):
-    faviconmmh3, faviconmd5 = process_favicon(domain, requestobject, usetor)
+    faviconmmh3, faviconmd5, location = process_favicon(domain, requestobject, usetor)
     if faviconmmh3 is None:
-        return
+        return None
     if commonhash(faviconmmh3):
         log.warning('favicon found in common hashlist, unlikely a unique asset - skipping shodan')
-        return
+        return {
+            'mmh3': faviconmmh3,
+            'md5': faviconmd5,
+            'location': location,
+            'common': True
+        }
     if doshodan is True:
         query_shodan('http.favicon.hash:' + str(faviconmmh3))
     if docensys is True:
@@ -93,4 +98,9 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
         query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:
         query_fofa('icon_hash=' + str(faviconmmh3))
-    return faviconmmh3
+    return {
+        'mmh3': faviconmmh3,
+        'md5': faviconmd5,
+        'location': location,
+        'common': False
+    }

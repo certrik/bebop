@@ -658,7 +658,7 @@ def _generate_favicon_section(data):
     """Generate favicon section"""
     favicon = data.get('favicon')
 
-    if not favicon:
+    if not favicon or not isinstance(favicon, dict):
         return ""
 
     html = f"""
@@ -666,12 +666,16 @@ def _generate_favicon_section(data):
         <h2 class="section-title">🎨 Favicon Analysis</h2>
         <div class="info-grid">
             <div class="info-item">
+                <div class="label">MMH3 Hash</div>
+                <div class="value"><code>{escape(str(favicon.get('mmh3', 'N/A')))}</code></div>
+            </div>
+            <div class="info-item">
                 <div class="label">MD5 Hash</div>
-                <div class="value"><code>{escape(favicon.get('md5', 'N/A'))}</code></div>
+                <div class="value"><code>{escape(str(favicon.get('md5', 'N/A')))}</code></div>
             </div>
             <div class="info-item">
                 <div class="label">Location</div>
-                <div class="value">{escape(favicon.get('location', 'N/A'))}</div>
+                <div class="value">{escape(str(favicon.get('location', 'N/A')))}</div>
             </div>
         </div>
     </div>
