@@ -28,10 +28,28 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
       - name: wait_circuit_built
-        run: sleep 15
+        run: |
+          echo "Waiting for Tor to establish circuits..."
+          max_attempts=30
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if curl -s --socks5-hostname localhost:9050 --max-time 5 https://check.torproject.org/api/ip > /dev/null 2>&1; then
+              echo "Tor is ready!"
+              break
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts: Tor not ready yet, waiting..."
+            sleep 2
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Error: Tor failed to become ready after $max_attempts attempts"
+            exit 1
+          fi
       - name: check_proxy
         run: |
+          echo "Verifying Tor connection..."
           curl -s --socks5-hostname localhost:9050 https://check.torproject.org/api/ip
+          echo "Tor proxy is working correctly!"
       - name: prepare
         run: |
           pip3 install -e .
