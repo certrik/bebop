@@ -8,6 +8,8 @@ import requests
 from censys_platform import SDK
 import shodan
 
+from app import correlate
+
 log = logging.getLogger(__name__)
 
 FOFA_API_KEY = os.getenv('FOFA_API_KEY', None)
@@ -86,6 +88,7 @@ def query_zoomeye(squery):
             findings.append(result)
             log.info('zoomeye: found %s', result.get('ip'))
             log.debug('zoomeye: %s', result.get('banner'))
+            correlate.add_candidate(result.get('ip'), 'zoomeye', squery)
     else:
         log.warning('zoomeye: more than 20 results found. Skipping query as it is not deemed rare.')
     return findings
@@ -121,6 +124,8 @@ def query_censys(squery):
             for hit in hits:
                 findings.append(hit)
                 log.info('censys: found %s', hit)
+                _ip = hit.get('ip') if isinstance(hit, dict) else getattr(hit, 'ip', None)
+                correlate.add_candidate(_ip, 'censys', squery)
         else:
             log.warning('censys: more than 20 results found. skipping query as it is not deemed rare.')
     except Exception as e:
@@ -145,6 +150,7 @@ def query_shodan(squery):
                 findings.append(result)
                 log.info('shodan: found %s', result['ip_str'])
                 log.debug('shodan: %s', result['data'])
+                correlate.add_candidate(result.get('ip_str'), 'shodan', squery)
         else:
             log.warning('shodan: more than 20 results found. skipping query as it is not deemed rare.')
     except shodan.APIError as sae:
@@ -192,6 +198,7 @@ def query_fofa(squery):
         for result in results_data['results']:
             findings.append(result)
             log.info('fofa: found ' + str(result[0]))
+            correlate.add_candidate(result[0], 'fofa', squery)
     else:
         log.warning('fofa: more than 20 results found. skipping query as it is not deemed rare.')
     return findings
@@ -243,6 +250,7 @@ def query_modat(squery):
         for result in results_data.get('page', []):
             findings.append(result)
             log.info('modat: found %s', result.get('ip'))
+            correlate.add_candidate(result.get('ip'), 'modat', squery)
     else:
         log.warning('modat: more than 20 results found. skipping query as it is not deemed rare.')
     return findings
@@ -403,6 +411,9 @@ def query_validin_pivot(hash_value):
         for rec in findings:
             log.info('validin: hash %s -> %s / %s (last=%s)',
                      hash_value, rec.get('value'), rec.get('key'), rec.get('last_seen'))
+            for token in (rec.get('value'), rec.get('key')):
+                if _validin_is_domain(token, exclude=str(hash_value)):
+                    correlate.add_candidate(token, 'validin', 'validin:pivot')
     else:
         log.warning('validin: more than 20 pivots for %s - not deemed rare, skipping detail', hash_value)
     return findings

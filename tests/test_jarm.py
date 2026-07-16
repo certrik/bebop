@@ -18,7 +18,7 @@ class TestJarm(unittest.TestCase):
     def test_compute_assembles_and_hashes(self, mock_probe):
         mock_probe.return_value = b'\x16\x03\x03\x00'  # opaque; parsing is patched
         with patch('app.jarm.Scanner') as S, patch('app.jarm.Hasher') as H, \
-                patch('app.jarm._FAILURE_HASH', '0' * 62):
+                patch('app.jarm._failure_hash', lambda: '0' * 62):
             S._generate_packets.return_value = [('p1', b'aa'), ('p2', b'bb')]
             S._parse_server_hello.side_effect = lambda hello, pkt: 'R'
             H.jarm.return_value = 'abcd' + '0' * 58
@@ -31,7 +31,7 @@ class TestJarm(unittest.TestCase):
     @patch('app.jarm._probe', return_value=None)
     def test_all_failure_returns_none(self, _):
         with patch('app.jarm.Scanner') as S, patch('app.jarm.Hasher') as H, \
-                patch('app.jarm._FAILURE_HASH', 'FAILHASH'):
+                patch('app.jarm._failure_hash', lambda: 'FAILHASH'):
             S._generate_packets.return_value = [('p1', b'aa')]
             S._parse_server_hello.return_value = ''
             H.jarm.return_value = 'FAILHASH'  # every probe failed

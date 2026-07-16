@@ -23,6 +23,7 @@ from app.finddomains import main as finddomains_main
 from app.analytics import main as analytics_main
 from app.contentleak import main as contentleak_main
 from app.robotsmap import main as robotsmap_main
+from app import correlate
 from app.tlsfingerprint import main as tlsfingerprint_main
 from app.htmlreport import generate_html_report, save_html_report
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport, refang_url
@@ -51,6 +52,10 @@ def main():
     args = parser.parse_args()
 
     logging.basicConfig(
+        # force=True so bebop owns the root logger even if an imported library
+        # (e.g. pyjarm) installed a handler at import time, which would otherwise
+        # make this a no-op and silently suppress INFO/DEBUG output.
+        force=True,
         level=logging.getLevelName(args.loglevel),
         format='%(asctime)-11s %(levelname)-8s %(lineno)d:%(filename)-15s %(funcName)-25s %(message)s',
         datefmt="%I:%M:%S%p",
@@ -100,6 +105,9 @@ def main():
     url_base = getbaseurl(args.target)
     logging.debug('target: %s url_base: %s fqdn: %s', args.target, url_base, fqdn)
 
+    # Fresh correlation state for this scan; pivots feed candidates into it.
+    correlate.reset()
+
     requestobject = getpage_main(args.target, usetor=torstate)
     if requestobject is None:
         logging.error('failed to retrieve page')
@@ -143,6 +151,7 @@ def main():
             logging.info(f"Found {len(domains_data)} domains resolving to {ip_address}")
             for domain in domains_data:
                 logging.info(f"Domain: {domain}")
+                correlate.add_candidate(domain, 'pdns', 'pdns:resolution')
 
     for item in pagespider_data['samedomain']:
         itemsource = getpage_main(item)
@@ -154,6 +163,23 @@ def main():
     except Exception as e:
         logging.error('portscan failed (%s) - continuing without port data', e)
         portscan_data = None
+
+    # NEW: fuse every pivot's candidates and confirm the strongest against the
+    # onion baseline by fetching them over clearnet.
+    baseline = {
+        'title': title_data,
+        'server': dict(requestobject.headers).get('Server') or dict(requestobject.headers).get('server'),
+        'body_sha256': (contentleak_data.get('body_hash') or {}).get('sha256') if contentleak_data else None,
+        'body_mmh3': (contentleak_data.get('body_hash') or {}).get('mmh3') if contentleak_data else None,
+        'favicon_md5': (favicon_data or {}).get('md5'),
+        'jarm': (tlsfingerprint_data or {}).get('jarm'),
+    }
+    try:
+        deanon_candidates = correlate.correlate_and_confirm(
+            baseline, fetch_fn=lambda u: getpage_main(u, usetor=False))
+    except Exception as e:
+        logging.error('correlation/confirmation failed (%s)', e)
+        deanon_candidates = []
 
     # Calculate scan duration
     end_time = time.time()
@@ -195,7 +221,8 @@ def main():
                 'tls_fingerprint': tlsfingerprint_data,
                 'cryptocurrency': cryptocurrency_data,
                 'pagespider': pagespider_data,
-                'domains': domains_data
+                'domains': domains_data,
+                'deanon_candidates': deanon_candidates
             }
 
             # Generate HTML

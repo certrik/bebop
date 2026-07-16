@@ -27,11 +27,17 @@ try:
     from jarm.hashing.hashing import Hasher
     from jarm.constants import TOTAL_FAILURE
     _JARM_AVAILABLE = True
-    # The fingerprint returned when every probe fails (target speaks no TLS).
-    _FAILURE_HASH = Hasher.jarm(TOTAL_FAILURE)
 except Exception:  # pragma: no cover - pyjarm is an optional dependency
     _JARM_AVAILABLE = False
-    _FAILURE_HASH = '0' * 62
+
+
+def _failure_hash():
+    '''The fingerprint returned when every probe fails (target speaks no TLS).
+    Computed lazily: calling Hasher.jarm() installs a root log handler, so we
+    avoid doing it at import time where it would clobber bebop's logging setup.'''
+    if not _JARM_AVAILABLE:
+        return '0' * 62
+    return Hasher.jarm(TOTAL_FAILURE)
 
 
 def _open_socket(host, port, usetor, timeout):
@@ -84,7 +90,7 @@ def compute_jarm(host, port=443, usetor=True, timeout=15):
         results.append(Scanner._parse_server_hello(hello, (name, payload)))
 
     fingerprint = Hasher.jarm(','.join(results))
-    if fingerprint == _FAILURE_HASH:
+    if fingerprint == _failure_hash():
         log.info('jarm: no TLS response from %s:%s', host, port)
         return None
     return fingerprint
