@@ -16,8 +16,11 @@ SHODAN_API_KEY = os.getenv('SHODAN_API_KEY', None)
 URLSCAN_API_KEY = os.getenv('URLSCAN_API_KEY', None)
 MODAT_API_KEY = os.getenv('MODAT_API_KEY', None)
 ZOOMEYE_API_KEY = os.getenv('ZOOMEYE_API_KEY', None)
+VALIDIN_API_KEY = os.getenv('VALIDIN_API_KEY', None)
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY', None)
 SECURITYTRAILS_API_KEY = os.getenv('SECURITYTRAILS_API_KEY', None)
+
+VALIDIN_BASE = 'https://app.validin.com'
 # The legacy Search API (api_id/api_secret against search.censys.io) has been
 # retired. The Censys Platform authenticates with a personal access token
 # scoped to an organization id.
@@ -314,3 +317,92 @@ def query_resolutions_urlscan(ip_address):
             hostnames.add(item['task']['domain'])
     logging.info(f"found {len(hostnames)} hostnames on urlscan.io")
     return hostnames
+
+# --- Validin (https://app.validin.com) -----------------------------------
+# Scoped to the single-indicator endpoints covered by the Pro tier's
+# "Expanded" API access: reverse passive-DNS history and host-response hash
+# pivots. Enterprise-only surfaces (bulk, live scan, CIDR ranges, threat/
+# project APIs) are intentionally not used.
+
+def _validin_get(path):
+    '''GET a Validin API path with Bearer auth; returns parsed JSON or None.'''
+    try:
+        response = requests.get(
+            VALIDIN_BASE + path,
+            headers={'Authorization': 'BEARER ' + VALIDIN_API_KEY},
+            timeout=15,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        log.error('validin: api error: %s', e)
+        return None
+    return response.json()
+
+
+def _validin_is_domain(token, exclude=None):
+    '''Loose check: a token that looks like a hostname rather than an IP.'''
+    if not token or token == exclude:
+        return False
+    if '.' not in token:
+        return False
+    # reject bare IPv4 / IPv6
+    if all(part.isdigit() for part in token.split('.')):
+        return False
+    if ':' in token:
+        return False
+    return any(c.isalpha() for c in token)
+
+
+def query_resolutions_validin(ip_address):
+    '''
+    Historical passive-DNS reverse lookup: every hostname Validin has ever seen
+    resolving to this IP. Unlike current-only sources, this surfaces domains
+    that pointed at the origin in the past and were later moved away.
+    '''
+    if not VALIDIN_API_KEY:
+        log.warning("validin: without an api key queries are skipped")
+        return set()
+    data = _validin_get('/api/axon/ip/dns/history/' + ip_address)
+    if not data:
+        return set()
+    hostnames = set()
+    for _rtype, records in (data.get('records') or {}).items():
+        for rec in records:
+            for token in (rec.get('key'), rec.get('value')):
+                if _validin_is_domain(token, exclude=ip_address):
+                    if token not in hostnames:
+                        log.info('validin: %s seen on %s (first=%s last=%s)',
+                                 token, ip_address, rec.get('first_seen'), rec.get('last_seen'))
+                    hostnames.add(token)
+    log.info('validin: found %s historical hostnames for %s', len(hostnames), ip_address)
+    return hostnames
+
+
+def query_validin_pivot(hash_value):
+    '''
+    Pivot a host-response fingerprint (favicon md5, HTTP body sha1, certificate
+    sha1, or JARM) to the domains/IPs Validin has seen sharing it. A rare
+    fingerprint shared with a clearnet host is a strong deanonymisation lead.
+    '''
+    findings = []
+    if not VALIDIN_API_KEY:
+        log.warning("validin: without an api key queries are skipped")
+        return findings
+    if not hash_value:
+        log.error("validin: no hash provided")
+        return findings
+    data = _validin_get('/api/axon/hash/pivots/' + str(hash_value))
+    if not data:
+        return findings
+    for _rtype, records in (data.get('records') or {}).items():
+        for rec in records:
+            findings.append(rec)
+    total = len(findings)
+    log.info('validin: found %s pivot records for hash %s', total, hash_value)
+    if total <= 20:
+        for rec in findings:
+            log.info('validin: hash %s -> %s / %s (last=%s)',
+                     hash_value, rec.get('value'), rec.get('key'), rec.get('last_seen'))
+    else:
+        log.warning('validin: more than 20 pivots for %s - not deemed rare, skipping detail', hash_value)
+    return findings

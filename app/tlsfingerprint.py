@@ -5,7 +5,7 @@ import socket
 import ssl
 import hashlib
 import struct
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_modat
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_modat, query_validin_pivot
 from app.jarm import compute_jarm
 from app.utilities import getsocks
 
@@ -228,7 +228,7 @@ def extract_cert_fingerprints(hostname, port, usetor=True):
         return None
 
 
-def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=True, domodat=True):
+def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=True, domodat=True, dovalidin=True):
     """
     Perform TLS/SSL fingerprinting on target
     """
@@ -255,6 +255,8 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
             query_zoomeye(f'ssl.jarm:"{jarm_hash}"')
         if domodat:
             query_modat(f'tls.jarm:{jarm_hash}')
+        if dovalidin:
+            query_validin_pivot(jarm_hash)
 
     # Probe different TLS versions
     tls_versions = get_tls_versions()
@@ -299,5 +301,8 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
             query_zoomeye(f'ssl.fingerprint:"{cert_fps["sha256"]}"')
         if domodat:
             query_modat(f'tls.fingerprint_sha256:{cert_fps["sha256"]}')
+        if dovalidin:
+            # Validin pivots certificates on the SHA1 fingerprint.
+            query_validin_pivot(cert_fps['sha1'])
 
     return findings

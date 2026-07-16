@@ -22,7 +22,7 @@ import hashlib
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
-from app.subprocessors import query_shodan, query_zoomeye, query_modat
+from app.subprocessors import query_shodan, query_zoomeye, query_modat, query_validin_pivot
 
 log = logging.getLogger(__name__)
 
@@ -166,6 +166,7 @@ def compute_body_hash(content):
     Body hashes for cross-engine pivoting:
       * mmh3  - Shodan http.html_hash / Modat web.body_mmh3
       * md5   - ZoomEye body_hash
+      * sha1  - Validin HTTP body hash
       * sha256 - correlation / de-dup
     '''
     if isinstance(content, str):
@@ -173,11 +174,12 @@ def compute_body_hash(content):
     return {
         'mmh3': mmh3.hash(content),
         'md5': hashlib.md5(content).hexdigest(),
+        'sha1': hashlib.sha1(content).hexdigest(),
         'sha256': hashlib.sha256(content).hexdigest(),
     }
 
 
-def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True, domodat=True):
+def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True, domodat=True, dovalidin=True):
     html = requestobject.text
     self_host = _host_of(requestobject.url)
     findings = {
@@ -219,16 +221,18 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
     # Body-content pivot: operators often serve identical pages on onion + clearnet
     body_hash = compute_body_hash(requestobject.content)
     findings['body_hash'] = body_hash
-    log.info('contentleak: body hash mmh3=%s md5=%s sha256=%s',
-             body_hash['mmh3'], body_hash['md5'], body_hash['sha256'])
+    log.info('contentleak: body hash mmh3=%s md5=%s sha1=%s sha256=%s',
+             body_hash['mmh3'], body_hash['md5'], body_hash['sha1'], body_hash['sha256'])
     # Shodan and Modat index the mmh3 of the HTML body (http.html_hash /
-    # web.body_mmh3); ZoomEye indexes its md5 (body_hash). (FOFA/Censys have no
-    # equivalent body-hash field.)
+    # web.body_mmh3); ZoomEye indexes its md5 (body_hash); Validin pivots on the
+    # sha1. (FOFA/Censys have no equivalent body-hash field.)
     if doshodan:
         query_shodan('http.html_hash:' + str(body_hash['mmh3']))
     if dozoome:
         query_zoomeye('body_hash:' + body_hash['md5'])
     if domodat:
         query_modat('web.body_mmh3:' + str(body_hash['mmh3']))
+    if dovalidin:
+        query_validin_pivot(body_hash['sha1'])
 
     return findings
