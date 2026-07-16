@@ -127,7 +127,7 @@ field extractions for bitcoin, monero and ethereum - leveraging blockcypher & wa
 - the favicon discovery will attempt to parse the icon from any HTML, falling back to hardcoded paths
 - if found, the favicon is downloaded and an [MurmurHash](https://commons.apache.org/proper/commons-codec/apidocs/org/apache/commons/codec/digest/MurmurHash3.html) is computed
 - the hash is searched against the following engines where credentials are provided
-`shodan:http.favicon.hash`, `censys:services.http.response.favicons.md5_hash` & `zoomeye:iconhash`
+`shodan:http.favicon.hash`, `censys:host.services.http.response.favicons.md5_hash` & `zoomeye:iconhash`
 
 _to avoid noise, a list of the top 200 favicons have been added to this repository - if a finding is matched, it will not be considered unique - see the housekeeping section for details_
 
@@ -300,10 +300,10 @@ _using one, any or all external data repositories is optional and only done when
 
 | Search Provider   | Environment Variable                  | Where to Find                                                                                    |
 |-------------------|---------------------------------------|--------------------------------------------------------------------------------------------------|
-| Censys            | `CENSYS_API_ID` & `CENSYS_API_SECRET` | [search.censys.io/account/api](https://search.censys.io/account/api)                             |
+| Censys            | `CENSYS_PERSONAL_ACCESS_TOKEN` & `CENSYS_ORGANIZATION_ID` | [platform.censys.io](https://platform.censys.io)                          |
 | Shodan            | `SHODAN_API_KEY`                      | [account.shodan.io](https://account.shodan.io)                                                   |
 | FOFA              | `FOFA_API_KEY`                        | [en.fofa.info](https://en.fofa.info/userInfo)                                                    |
-| ZoomEye           | `ZOOMEYE_API_KEY`                     | [zoomeye.org/profile](https://www.zoomeye.org/profile)                                           |
+| ZoomEye           | `ZOOMEYE_API_KEY`                     | [zoomeye.ai/profile](https://www.zoomeye.ai/profile)                                             |
 | urlscan           | `URLSCAN_API_KEY`                     | [urlscan.io/user/profile](https://urlscan.io/user/profile/)                                      |
 | VirusTotal        | `VIRUSTOTAL_API_KEY`                  | [support.virustotal.com](https://support.virustotal.com/hc/en-us/articles/115002100149-API)      |
 | SecurityTrails    | `SECURITYTRAILS_API_KEY`              | [securitytrails.com/app/account/credentials](https://securitytrails.com/app/account/credentials) |
@@ -348,8 +348,8 @@ The GitHub Actions workflow automatically sets up a Tor proxy for you. If you wa
 1. Go to your repository settings
 2. Navigate to "Secrets and variables" → "Actions"
 3. Add the following secrets as needed:
-   - `CENSYS_API_ID`
-   - `CENSYS_API_SECRET`
+   - `CENSYS_PERSONAL_ACCESS_TOKEN`
+   - `CENSYS_ORGANIZATION_ID`
    - `FOFA_API_KEY`
    - `FOFA_API_MAIL`
    - `SECURITYTRAILS_API_KEY`
@@ -379,7 +379,7 @@ you can use [get-api-allowances.py](get-api-allowances.py) to retrieve search qu
 ```
 x:bebop (main*) $ ./get-api-allowances.py
 ############# ZoomEye
-359871 remaining credits
+9666 free points, 0 paid points remaining
 ################ fofa
 coins: 0
 points: 9666
@@ -388,7 +388,7 @@ remaining data: 0
 ############## Shodan
 99 query credits remaining for current month
 ############## Censys
-used 31 of 250 available queries for current month - 219 remaining
+Platform credentials configured for organization 11111111-2222-3333-4444-555555555555 - view remaining credits at https://platform.censys.io
 ############## SecurityTrails
 used 23 of 50 avail credits for current month
 ############## urlscan.io

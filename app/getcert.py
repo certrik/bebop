@@ -89,7 +89,7 @@ def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, do
         if doshodan is True:
             query_shodan('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
         if docensys is True:
-            query_censys('services.ssl.certificates.parsed.serial_number:"' + str(crypto_cert.serial_number) + '"')
+            query_censys('host.services.tls.certificates.leaf_data.serial_number="' + str(crypto_cert.serial_number) + '"')
         if dozoome is True:
             query_zoomeye('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
         if dofofa is True:

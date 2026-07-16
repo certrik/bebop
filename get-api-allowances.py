@@ -43,17 +43,16 @@ else:
     log.error('SHODAN_API_KEY missing')
 
 # Censys
-if os.getenv('CENSYS_API_ID', None) != None and os.getenv('CENSYS_API_SECRET', None) != None:
-    censys_authid = os.getenv('CENSYS_API_ID')
-    censys_authsecret = os.getenv('CENSYS_API_SECRET')
-    censys_data = requests.get('https://search.censys.io/api/v1/account', auth=(censys_authid, censys_authsecret))
-    requests_used = censys_data.json()['quota']['used']
-    requests_available = censys_data.json()['quota']['allowance']
-    requests_left = requests_available - requests_used
+# The legacy Search account/quota endpoint (search.censys.io/api/v1/account)
+# was retired with the migration to the Censys Platform. Platform usage is
+# tracked per organization in the web console rather than through a public
+# quota endpoint, so we only confirm the credentials are present here.
+if os.getenv('CENSYS_PERSONAL_ACCESS_TOKEN', None) != None and os.getenv('CENSYS_ORGANIZATION_ID', None) != None:
     print('############## Censys')
-    print('used {} of {} available queries for current month - {} remaining'.format(requests_used, requests_available, requests_left))
+    print('Platform credentials configured for organization {} - view remaining credits at https://platform.censys.io'.format(
+        os.getenv('CENSYS_ORGANIZATION_ID')))
 else:
-    log.error('CENSYS_API_ID or CENSYS_API_SECRET missing')
+    log.error('CENSYS_PERSONAL_ACCESS_TOKEN or CENSYS_ORGANIZATION_ID missing')
 
 # SecurityTrails
 if os.getenv('SECURITYTRAILS_API_KEY', None) != None:

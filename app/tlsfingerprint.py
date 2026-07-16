@@ -277,7 +277,7 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
         if doshodan:
             query_shodan(f'ssl.cert.fingerprint.sha256:"{cert_fps["sha256"]}"')
         if docensys:
-            query_censys(f'services.tls.certificates.leaf_data.fingerprint_sha256:"{cert_fps["sha256"]}"')
+            query_censys(f'host.services.tls.certificates.leaf_data.fingerprint_sha256="{cert_fps["sha256"]}"')
         if dozoome:
             query_zoomeye(f'ssl.fingerprint:"{cert_fps["sha256"]}"')
 

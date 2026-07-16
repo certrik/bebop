@@ -4,7 +4,6 @@ import sys
 import os
 import json
 import requests
-from censys.common.exceptions import CensysException
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app import subprocessors
@@ -28,6 +27,7 @@ class TestSubprocessors(unittest.TestCase):
     def tearDown(self):
         self.env_patcher.stop()
 
+    @patch('app.subprocessors.ZOOMEYE_API_KEY', 'test_zoomeye_key')
     @patch('requests.post')
     def test_query_zoomeye(self, mock_post):
         # Test successful query (ZoomEye v2 /v2/search response shape)
@@ -62,29 +62,36 @@ class TestSubprocessors(unittest.TestCase):
         results = subprocessors.query_zoomeye('test query')
         self.assertEqual(len(results), 0)
 
-    @patch('app.subprocessors.censys_api')
-    def test_query_censys(self, mock_censys_api):
-        # Test successful query
-        mock_results = MagicMock()
-        mock_results.return_value = [
-            {'ip': '1.1.1.1'},
-            {'ip': '2.2.2.2'}
-        ]
-        mock_censys_api.search.return_value = mock_results
-        mock_results.__len__.return_value = 2
+    @patch('app.subprocessors.SDK')
+    @patch('app.subprocessors.CENSYS_ORGANIZATION_ID', 'test_org')
+    @patch('app.subprocessors.CENSYS_PERSONAL_ACCESS_TOKEN', 'test_token')
+    def test_query_censys(self, mock_sdk_cls):
+        # SDK() is used as a context manager returning the client instance
+        sdk_instance = MagicMock()
+        mock_sdk_cls.return_value.__enter__.return_value = sdk_instance
 
-        results = subprocessors.query_censys('test query')
+        def make_response(hits):
+            # Envelope shape: response.result.result.hits
+            resp = MagicMock()
+            resp.result.result.hits = hits
+            return resp
+
+        # Test successful query (Censys Platform response shape)
+        sdk_instance.global_data.search.return_value = make_response(
+            [{'ip': '1.1.1.1'}, {'ip': '2.2.2.2'}])
+        results = subprocessors.query_censys('host.dns.names="example.com"')
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]['ip'], '1.1.1.1')
 
         # Test query with too many results
-        mock_results.__len__.return_value = 21
-        results = subprocessors.query_censys('test query')
+        sdk_instance.global_data.search.return_value = make_response(
+            [{'ip': f'{i}.{i}.{i}.{i}'} for i in range(21)])
+        results = subprocessors.query_censys('host.dns.names="example.com"')
         self.assertEqual(len(results), 0)
 
         # Test Censys API error
-        mock_censys_api.search.side_effect = CensysException()
-        results = subprocessors.query_censys('test query')
+        sdk_instance.global_data.search.side_effect = Exception('boom')
+        results = subprocessors.query_censys('host.dns.names="example.com"')
         self.assertEqual(len(results), 0)
 
     @patch('requests.get')

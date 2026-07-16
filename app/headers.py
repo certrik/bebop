@@ -174,7 +174,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
                 if doshodan:
                     query_shodan(f'hostname:"{domain}"')
                 if docensys:
-                    query_censys(f'dns.names:"{domain}"')
+                    query_censys(f'host.dns.names="{domain}"')
                 if dozoome:
                     query_zoomeye(f'hostname:"{domain}"')
 
@@ -189,7 +189,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
             if doshodan:
                 query_shodan(f'hostname:"{cors_origin}"')
             if docensys:
-                query_censys(f'dns.names:"{cors_origin}"')
+                query_censys(f'host.dns.names="{cors_origin}"')
             if dozoome:
                 query_zoomeye(f'hostname:"{cors_origin}"')
 
@@ -210,7 +210,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
         if doshodan:
             query_shodan(f'http.headers.etag:"{etag}"')
         if docensys:
-            query_censys(f'services.http.response.headers.etag:"{etag}"')
+            query_censys(f'host.services: (http.response.headers.key="etag" and http.response.headers.value.headers="{etag}")')
         if dozoome:
             query_zoomeye(f'header.etag:"{etag}"')
         if dofofa:
@@ -222,7 +222,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
         if doshodan:
             query_shodan(f'http.headers.server:"{server}"')
         if docensys:
-            query_censys(f'services.http.response.headers.server:"{server}"')
+            query_censys(f'host.services: (http.response.headers.key="server" and http.response.headers.value.headers="{server}")')
         if dozoome:
             query_zoomeye(f'header.server:"{server}"')
         if dofofa:

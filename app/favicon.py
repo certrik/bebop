@@ -93,7 +93,7 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
     if doshodan is True:
         query_shodan('http.favicon.hash:' + str(faviconmmh3))
     if docensys is True:
-        query_censys('services.http.response.favicons.md5_hash:' + str(faviconmd5))
+        query_censys('host.services.http.response.favicons.md5_hash="' + str(faviconmd5) + '"')
     if dozoome is True:
         query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:
