@@ -15,7 +15,7 @@ setup(
         'cryptography',
         'idna',
         'tldextract',
-        'censys',
+        'censys-platform',
         'shodan',
         'aiohttp',
         'aiohttp-socks',

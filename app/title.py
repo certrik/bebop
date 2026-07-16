@@ -24,7 +24,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
             if doshodan:
                 query_shodan('http.title:"' + title.text + '"')
             if docensys:
-                querystr = 'services.http.response.html_title:"' + title.text + '"'
+                querystr = 'host.services.http.response.html_title="' + title.text + '"'
                 query_censys(querystr)
             if dozoome:
                 query_zoomeye('title:"' + title.text + '"')

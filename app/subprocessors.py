@@ -5,24 +5,23 @@ import json
 import base64
 import logging
 import requests
-from censys.search import CensysHosts
-from censys.common.exceptions import CensysException
+from censys_platform import SDK
 import shodan
 
 log = logging.getLogger(__name__)
 
 FOFA_API_KEY = os.getenv('FOFA_API_KEY', None)
-CENSYS_API_ID = os.getenv('CENSYS_API_ID', None)
 FOFA_API_MAIL = os.getenv('FOFA_API_MAIL', None)
 SHODAN_API_KEY = os.getenv('SHODAN_API_KEY', None)
 URLSCAN_API_KEY = os.getenv('URLSCAN_API_KEY', None)
 ZOOMEYE_API_KEY = os.getenv('ZOOMEYE_API_KEY', None)
-CENSYS_API_SECRET = os.getenv('CENSYS_API_SECRET', None)
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY', None)
 SECURITYTRAILS_API_KEY = os.getenv('SECURITYTRAILS_API_KEY', None)
-
-if CENSYS_API_SECRET and CENSYS_API_ID:
-    censys_api = CensysHosts(api_id=CENSYS_API_ID, api_secret=CENSYS_API_SECRET)
+# The legacy Search API (api_id/api_secret against search.censys.io) has been
+# retired. The Censys Platform authenticates with a personal access token
+# scoped to an organization id.
+CENSYS_PERSONAL_ACCESS_TOKEN = os.getenv('CENSYS_PERSONAL_ACCESS_TOKEN', None)
+CENSYS_ORGANIZATION_ID = os.getenv('CENSYS_ORGANIZATION_ID', None)
 
 if SHODAN_API_KEY:
     shodan_api = shodan.Shodan(SHODAN_API_KEY)
@@ -42,60 +41,86 @@ def query_zoomeye(squery):
 
     headers = {
         'API-KEY': ZOOMEYE_API_KEY,
+        'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0'
     }
 
-    params = {'query': squery}
+    # The legacy GET /host/search endpoint has been retired. ZoomEye v2 expects
+    # a POST to /v2/search with the dork base64-encoded in the qbase64 field.
+    payload = {
+        'qbase64': base64.b64encode(squery.encode('utf-8')).decode('utf-8'),
+        'page': 1,
+        'pagesize': 20,
+    }
 
     try:
-        results = requests.get('https://api.zoomeye.ai/host/search',
-                               params=params,
-                               headers=headers)
+        results = requests.post('https://api.zoomeye.ai/v2/search',
+                                json=payload,
+                                headers=headers,
+                                timeout=10)
         results.raise_for_status()
     except requests.exceptions.HTTPError as e:
         log.error('zoomeye: HTTP error: %s', e)
-        log.error('Response status code: %s', e.response.status_code)
-        log.error('Response content: %s', e.response.text)
+        if e.response is not None:
+            log.error('Response status code: %s', e.response.status_code)
+            log.error('Response content: %s', e.response.text)
         return findings
     except requests.exceptions.RequestException as e:
         log.error('zoomeye: Request exception: %s', e)
         return findings
 
     results_data = results.json()
+    if results_data.get('code') != 60000:
+        log.error('zoomeye: api error: %s - %s',
+                  results_data.get('code'), results_data.get('message'))
+        return findings
     total_results = results_data.get('total', 0)
     log.info('zoomeye: found %s results for %s', total_results, squery)
 
     if total_results <= 20:
-        for result in results_data.get('matches', []):
+        for result in results_data.get('data', []):
             findings.append(result)
             log.info('zoomeye: found %s', result.get('ip'))
-            log.debug('zoomeye: %s', result.get('portinfo', {}).get('banner'))
+            log.debug('zoomeye: %s', result.get('banner'))
     else:
         log.warning('zoomeye: more than 20 results found. Skipping query as it is not deemed rare.')
     return findings
 
 def query_censys(squery):
     findings = []
-    if not (CENSYS_API_ID and CENSYS_API_SECRET):
-        log.warning("censys: without an api key queries are skipped")
+    if not (CENSYS_PERSONAL_ACCESS_TOKEN and CENSYS_ORGANIZATION_ID):
+        log.warning("censys: without a personal access token and organization id queries are skipped")
+        return findings
+    if not squery:
+        log.error("censys: no query provided")
         return findings
     try:
         log.debug('censys: querying %s', squery)
-        results = censys_api.search(squery, per_page=30)
-        total_results = len(results())
+        # Censys Platform: POST /v3/global/search/query via the SDK. Queries use
+        # CenQL (host.* field paths) rather than the legacy Search syntax.
+        with SDK(personal_access_token=CENSYS_PERSONAL_ACCESS_TOKEN,
+                 organization_id=CENSYS_ORGANIZATION_ID) as sdk:
+            response = sdk.global_data.search(search_query_input_body={
+                'query': squery,
+                'fields': ['host.ip'],
+                'page_size': 30,
+            })
+        # Response envelope: response.result.result.hits
+        result = getattr(response, 'result', None)
+        inner = getattr(result, 'result', None)
+        hits = getattr(inner, 'hits', None) or []
+        total_results = len(hits)
         log.info('censys: found %s results for %s', total_results, squery)
         if total_results == 0:
             return findings
         if total_results <= 20:
-            for result in results():
-                findings.append(result)
-                log.info('censys: found %s', result['ip'])
+            for hit in hits:
+                findings.append(hit)
+                log.info('censys: found %s', hit)
         else:
             log.warning('censys: more than 20 results found. skipping query as it is not deemed rare.')
-    except CensysException as ce:
-        log.error('censys: api error: %s', ce)
     except Exception as e:
-        log.error('censys: unexpected error: %s', e)
+        log.error('censys: api error: %s', e)
     return findings
 
 def query_shodan(squery):

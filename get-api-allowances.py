@@ -10,10 +10,12 @@ log = logging.getLogger(__name__)
 # ZoomEye
 if os.getenv('ZOOMEYE_API_KEY', None) != None:
     zoomeye_authkey = os.getenv('ZOOMEYE_API_KEY')
-    zoomeye_data = requests.get('https://api.zoomeye.ai/user/info', headers={'API-KEY': zoomeye_authkey})
-    requests_left = zoomeye_data.json()['quota']['Remaining-Query-Credit']
+    # Legacy /user/info was retired with the v2 API rollout.
+    zoomeye_data = requests.get('https://api.zoomeye.ai/v2/userinfo', headers={'API-KEY': zoomeye_authkey})
+    subscription = zoomeye_data.json().get('data', {}).get('subscription', {})
     print('############# ZoomEye')
-    print('{} remaining credits'.format(requests_left))
+    print('{} free points, {} paid points remaining'.format(
+        subscription.get('points'), subscription.get('zoomeye_points')))
 else:
     log.error('ZOOMEYE_API_KEY missing')
 
@@ -41,17 +43,16 @@ else:
     log.error('SHODAN_API_KEY missing')
 
 # Censys
-if os.getenv('CENSYS_API_ID', None) != None and os.getenv('CENSYS_API_SECRET', None) != None:
-    censys_authid = os.getenv('CENSYS_API_ID')
-    censys_authsecret = os.getenv('CENSYS_API_SECRET')
-    censys_data = requests.get('https://search.censys.io/api/v1/account', auth=(censys_authid, censys_authsecret))
-    requests_used = censys_data.json()['quota']['used']
-    requests_available = censys_data.json()['quota']['allowance']
-    requests_left = requests_available - requests_used
+# The legacy Search account/quota endpoint (search.censys.io/api/v1/account)
+# was retired with the migration to the Censys Platform. Platform usage is
+# tracked per organization in the web console rather than through a public
+# quota endpoint, so we only confirm the credentials are present here.
+if os.getenv('CENSYS_PERSONAL_ACCESS_TOKEN', None) != None and os.getenv('CENSYS_ORGANIZATION_ID', None) != None:
     print('############## Censys')
-    print('used {} of {} available queries for current month - {} remaining'.format(requests_used, requests_available, requests_left))
+    print('Platform credentials configured for organization {} - view remaining credits at https://platform.censys.io'.format(
+        os.getenv('CENSYS_ORGANIZATION_ID')))
 else:
-    log.error('CENSYS_API_ID or CENSYS_API_SECRET missing')
+    log.error('CENSYS_PERSONAL_ACCESS_TOKEN or CENSYS_ORGANIZATION_ID missing')
 
 # SecurityTrails
 if os.getenv('SECURITYTRAILS_API_KEY', None) != None:

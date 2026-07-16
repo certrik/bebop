@@ -2,7 +2,7 @@ yq
 mmh3
 lxml
 shodan
-censys
+censys-platform
 pytest
 pyOpenSSL
 tldextract
