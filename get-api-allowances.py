@@ -89,3 +89,16 @@ if os.getenv('VIRUSTOTAL_API_KEY', None) != None:
     print('used {} out of {} avail credits for current month'.format(virustotal_json['requests_used']['month'], virustotal_json['requests_used']['month_limit']))
 else:
     log.error('VIRUSTOTAL_API_KEY missing')
+
+# Modat Magnify
+if os.getenv('MODAT_API_KEY', None) != None:
+    modat_authkey = os.getenv('MODAT_API_KEY')
+    modat_data = requests.get('https://api.magnify.modat.io/search/quotas/v1',
+                              headers={'Authorization': 'Bearer ' + modat_authkey})
+    modat_json = modat_data.json()
+    print('############## Modat Magnify')
+    print('{} of {} searches remaining, {} of {} results remaining'.format(
+        modat_json['remaining_search_quota'], modat_json['search_quota'],
+        modat_json['remaining_results_quota'], modat_json['search_results_quota']))
+else:
+    log.error('MODAT_API_KEY missing')

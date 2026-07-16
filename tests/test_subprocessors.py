@@ -18,6 +18,7 @@ class TestSubprocessors(unittest.TestCase):
             'CENSYS_API_SECRET': 'test_censys_secret',
             'SHODAN_API_KEY': 'test_shodan_key',
             'ZOOMEYE_API_KEY': 'test_zoomeye_key',
+            'MODAT_API_KEY': 'test_modat_key',
             'URLSCAN_API_KEY': 'test_urlscan_key',
             'VIRUSTOTAL_API_KEY': 'test_virustotal_key',
             'SECURITYTRAILS_API_KEY': 'test_securitytrails_key'
@@ -60,6 +61,39 @@ class TestSubprocessors(unittest.TestCase):
         # Test HTTP error
         mock_post.side_effect = requests.exceptions.HTTPError()
         results = subprocessors.query_zoomeye('test query')
+        self.assertEqual(len(results), 0)
+
+    @patch('app.subprocessors.MODAT_API_KEY', 'test_modat_key')
+    @patch('requests.post')
+    def test_query_modat(self, mock_post):
+        # Test successful query (Modat service-search response shape)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'total_records': 2,
+            'page': [
+                {'ip': '1.1.1.1', 'service': {'port': 443}},
+                {'ip': '2.2.2.2', 'service': {'port': 80}},
+            ]
+        }
+        mock_post.return_value = mock_response
+
+        results = subprocessors.query_modat('web.title ~ "Login"')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]['ip'], '1.1.1.1')
+        args, kwargs = mock_post.call_args
+        self.assertEqual(args[0], 'https://api.magnify.modat.io/service/search/v1')
+        self.assertEqual(kwargs['json']['query'], 'web.title ~ "Login"')
+        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer test_modat_key')
+
+        # Test query with too many results
+        mock_response.json.return_value = {'total_records': 21, 'page': []}
+        results = subprocessors.query_modat('web.title ~ "Login"')
+        self.assertEqual(len(results), 0)
+
+        # Test HTTP error
+        mock_post.side_effect = requests.exceptions.HTTPError()
+        results = subprocessors.query_modat('web.title ~ "Login"')
         self.assertEqual(len(results), 0)
 
     @patch('app.subprocessors.SDK')

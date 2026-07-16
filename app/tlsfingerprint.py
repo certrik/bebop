@@ -5,7 +5,7 @@ import socket
 import ssl
 import hashlib
 import struct
-from app.subprocessors import query_shodan, query_censys, query_zoomeye
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_modat
 from app.utilities import getsocks
 
 logger = logging.getLogger('bebop')
@@ -227,7 +227,7 @@ def extract_cert_fingerprints(hostname, port, usetor=True):
         return None
 
 
-def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=True):
+def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=True, domodat=True):
     """
     Perform TLS/SSL fingerprinting on target
     """
@@ -280,5 +280,7 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
             query_censys(f'host.services.tls.certificates.leaf_data.fingerprint_sha256="{cert_fps["sha256"]}"')
         if dozoome:
             query_zoomeye(f'ssl.fingerprint:"{cert_fps["sha256"]}"')
+        if domodat:
+            query_modat(f'tls.fingerprint_sha256:{cert_fps["sha256"]}')
 
     return findings

@@ -9,7 +9,7 @@ from OpenSSL import SSL
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa, query_modat
 from app.utilities import getproxyvalue
 
 sockshost = getproxyvalue()[0]
@@ -52,7 +52,7 @@ def get_subject(cert):
     except x509.ExtensionNotFound:
         return None
 
-def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, dofofa=True):
+def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, dofofa=True, domodat=True):
     if port is None:
         logging.debug('port not specified, defaulting to 443')
         port = 443
@@ -94,6 +94,8 @@ def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, do
             query_zoomeye('ssl.cert.serial:"' + str(crypto_cert.serial_number) + '"')
         if dofofa is True:
             query_fofa('cert="' + str(crypto_cert.serial_number) + '"')
+        if domodat is True:
+            query_modat('tls.serial_number:' + str(crypto_cert.serial_number))
     else:
         logging.debug('serial number match in common list, not searching shodan')
     data = {
