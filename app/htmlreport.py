@@ -227,6 +227,7 @@ def generate_html_report(scan_data):
 
         <div class="content">
             {_generate_summary_section(scan_data)}
+            {_generate_deanon_section(scan_data)}
             {_generate_discovered_paths_section(scan_data)}
             {_generate_headers_section(scan_data)}
             {_generate_title_section(scan_data)}
@@ -745,6 +746,55 @@ def _generate_analytics_section(data):
     </div>
     """
     return html
+
+
+def _generate_deanon_section(data):
+    """Generate the ranked deanonymisation-candidates section"""
+    candidates = data.get('deanon_candidates') or []
+    if not candidates:
+        return ""
+
+    badge = {
+        'CONFIRMED': 'badge-danger',
+        'LIKELY': 'badge-warning',
+        'WEAK': 'badge-info',
+        'NO_MATCH': 'badge-success',
+        'UNREACHABLE': 'badge-success',
+    }
+
+    rows = ""
+    for c in candidates:
+        conf = c.get('confirmation', {})
+        verdict = conf.get('verdict', 'UNREACHABLE')
+        matches = ', '.join(conf.get('matches', [])) or '-'
+        rows += f"""
+        <tr>
+            <td><code>{escape(str(c.get('candidate', '')))}</code></td>
+            <td><span class="badge {badge.get(verdict, 'badge-info')}">{escape(verdict)}</span></td>
+            <td>{escape(str(c.get('category_count', 0)))}</td>
+            <td>{escape(', '.join(c.get('categories', [])))}</td>
+            <td>{escape(', '.join(c.get('sources', [])))}</td>
+            <td>{escape(matches)}</td>
+        </tr>
+        """
+
+    return f"""
+    <div class="section">
+        <h2 class="section-title">🎯 Deanonymization Candidates</h2>
+        <p class="empty-state">Candidate clearnet origins fused from all pivots, ranked by
+        corroborating selector categories and confirmed by fetching each over clearnet and
+        diffing against the onion baseline.</p>
+        <div class="table-container">
+            <table>
+                <thead><tr>
+                    <th>Candidate</th><th>Verdict</th><th>Selectors</th>
+                    <th>Categories</th><th>Sources</th><th>Baseline matches</th>
+                </tr></thead>
+                <tbody>{rows}</tbody>
+            </table>
+        </div>
+    </div>
+    """
 
 
 def _generate_contentleak_section(data):
