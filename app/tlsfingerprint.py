@@ -6,6 +6,7 @@ import ssl
 import hashlib
 import struct
 from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_modat
+from app.jarm import compute_jarm
 from app.utilities import getsocks
 
 logger = logging.getLogger('bebop')
@@ -236,8 +237,24 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
     findings = {
         'tls_probes': [],
         'tls_analysis': None,
-        'cert_fingerprints': None
+        'cert_fingerprints': None,
+        'jarm': None
     }
+
+    # JARM active fingerprint - a strong cross-host pivot indexed by every
+    # engine (Shodan ssl.jarm, ZoomEye ssl.jarm, Modat tls.jarm, Censys).
+    jarm_hash = compute_jarm(hostname, port, usetor=usetor)
+    if jarm_hash:
+        findings['jarm'] = jarm_hash
+        logger.info(f"JARM fingerprint: {jarm_hash}")
+        if doshodan:
+            query_shodan(f'ssl.jarm:"{jarm_hash}"')
+        if docensys:
+            query_censys(f'host.services.jarm.fingerprint="{jarm_hash}"')
+        if dozoome:
+            query_zoomeye(f'ssl.jarm:"{jarm_hash}"')
+        if domodat:
+            query_modat(f'tls.jarm:{jarm_hash}')
 
     # Probe different TLS versions
     tls_versions = get_tls_versions()

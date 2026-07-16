@@ -17,6 +17,7 @@ setup(
         'tldextract',
         'censys-platform',
         'shodan',
+        'pyjarm',
         'aiohttp',
         'aiohttp-socks',
         'pyOpenSSL',
