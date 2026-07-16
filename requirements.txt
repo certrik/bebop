@@ -2,6 +2,7 @@ yq
 mmh3
 lxml
 shodan
+pyjarm
 censys-platform
 pytest
 pyOpenSSL

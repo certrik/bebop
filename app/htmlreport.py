@@ -637,6 +637,16 @@ def _generate_tls_fingerprint_section(data):
         </div>
         """
 
+    # JARM active fingerprint
+    jarm_html = ""
+    if tls.get('jarm'):
+        jarm_html = f"""
+        <div class="subsection">
+            <h3 class="subsection-title">JARM Fingerprint</h3>
+            <div class="info-item"><div class="value"><code>{escape(tls['jarm'])}</code></div></div>
+        </div>
+        """
+
     html = f"""
     <div class="section">
         <h2 class="section-title">🔐 TLS/SSL Fingerprinting</h2>
@@ -650,6 +660,7 @@ def _generate_tls_fingerprint_section(data):
             <h3 class="subsection-title">Certificate Fingerprints</h3>
             {cert_html if cert_html else '<div class="empty-state">No data</div>'}
         </div>
+        {jarm_html}
     </div>
     """
     return html
