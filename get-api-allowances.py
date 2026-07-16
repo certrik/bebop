@@ -90,6 +90,16 @@ if os.getenv('VIRUSTOTAL_API_KEY', None) != None:
 else:
     log.error('VIRUSTOTAL_API_KEY missing')
 
+# Validin
+if os.getenv('VALIDIN_API_KEY', None) != None:
+    validin_authkey = os.getenv('VALIDIN_API_KEY')
+    validin_data = requests.get('https://app.validin.com/api/profile/usage',
+                                headers={'Authorization': 'BEARER ' + validin_authkey})
+    print('############## Validin')
+    print(json.dumps(validin_data.json(), indent=2))
+else:
+    log.error('VALIDIN_API_KEY missing')
+
 # Modat Magnify
 if os.getenv('MODAT_API_KEY', None) != None:
     modat_authkey = os.getenv('MODAT_API_KEY')

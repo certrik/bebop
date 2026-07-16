@@ -24,6 +24,7 @@ graph LR
         virustotal
         urlscan
         securitytrails
+        validin
     end
     netscans --> |if ip found|domain
     lookupsaver[(if rare value)]
@@ -133,7 +134,7 @@ _to avoid noise, a list of the top 200 favicons have been added to this reposito
 
 ### domain finder
 
-[finddomains.py](app/finddomains.py) attempts to try find domains resolving to a given IP address. it relies on four methods (rDNS, VisusTotal, urlscan & SecurityTrails)
+[finddomains.py](app/finddomains.py) attempts to try find domains resolving to a given IP address. it relies on five methods (rDNS, VirusTotal, urlscan, SecurityTrails & Validin). Validin additionally contributes *historical* passive-DNS, so domains that pointed at the origin in the past — but were later moved away — are surfaced as candidates even when they no longer resolve there.
 
 for any domains found, they are resolved over Tor and noted if matching the target
 
@@ -305,6 +306,7 @@ _using one, any or all external data repositories is optional and only done when
 | FOFA              | `FOFA_API_KEY`                        | [en.fofa.info](https://en.fofa.info/userInfo)                                                    |
 | ZoomEye           | `ZOOMEYE_API_KEY`                     | [zoomeye.ai/profile](https://www.zoomeye.ai/profile)                                             |
 | Modat Magnify     | `MODAT_API_KEY`                       | [magnify.modat.io](https://magnify.modat.io)                                                     |
+| Validin           | `VALIDIN_API_KEY`                     | [app.validin.com](https://app.validin.com) (Account Settings → Manage API keys)                  |
 | urlscan           | `URLSCAN_API_KEY`                     | [urlscan.io/user/profile](https://urlscan.io/user/profile/)                                      |
 | VirusTotal        | `VIRUSTOTAL_API_KEY`                  | [support.virustotal.com](https://support.virustotal.com/hc/en-us/articles/115002100149-API)      |
 | SecurityTrails    | `SECURITYTRAILS_API_KEY`              | [securitytrails.com/app/account/credentials](https://securitytrails.com/app/account/credentials) |
@@ -357,6 +359,7 @@ The GitHub Actions workflow automatically sets up a Tor proxy for you. If you wa
    - `SECURITYTRAILS_API_KEY`
    - `SHODAN_API_KEY`
    - `URLSCAN_API_KEY`
+   - `VALIDIN_API_KEY`
    - `VIRUSTOTAL_API_KEY`
    - `ZOOMEYE_API_KEY`
 

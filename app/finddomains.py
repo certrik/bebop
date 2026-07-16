@@ -4,7 +4,8 @@ import logging
 from app.subprocessors import (
     query_resolutions_virustotal,
     query_resolutions_urlscan,
-    query_resolutions_securitytrails
+    query_resolutions_securitytrails,
+    query_resolutions_validin
 )
 
 from app.utilities import getproxyvalue
@@ -48,12 +49,20 @@ def main(ip):
     urlsres = query_resolutions_urlscan(ip)
     log.info('querying securitytrails for resolutions')
     strailres = query_resolutions_securitytrails(ip)
-    combined_hostnames = vtires.union(urlsres, strailres)
+    log.info('querying validin for historical resolutions')
+    validinres = query_resolutions_validin(ip)
+    combined_hostnames = vtires.union(urlsres, strailres, validinres)
     if reverse_dns_hostname:
         combined_hostnames.add(reverse_dns_hostname)
     log.debug(f"total hostnames: {combined_hostnames}")
     log.info(f'found {len(combined_hostnames)} unique hostnames, checking resolution')
     resolved_hostnames = check_hostname_resolvematch(combined_hostnames, ip)
     log.info(f"found {len(resolved_hostnames)} hostnames resolving to {ip}")
-    log.debug(f"resolved hostnames: {resolved_hostnames}")
-    return resolved_hostnames
+    # Validin's edge is history: a domain that *used* to point at the origin is
+    # a strong deanon lead even if it no longer resolves there, so its hits are
+    # kept as candidates rather than dropped by the current-resolution filter.
+    all_candidates = sorted(set(resolved_hostnames).union(validinres))
+    log.debug(f"candidate hostnames: {all_candidates}")
+    log.info(f"found {len(all_candidates)} candidate hostnames for {ip} "
+             f"({len(resolved_hostnames)} currently resolving)")
+    return all_candidates
