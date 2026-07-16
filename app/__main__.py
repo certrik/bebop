@@ -21,6 +21,7 @@ from app.cliart import prints as cliart_main
 from app.cryptocurrency import main as cryptocurrency_main
 from app.finddomains import main as finddomains_main
 from app.analytics import main as analytics_main
+from app.contentleak import main as contentleak_main
 from app.robotsmap import main as robotsmap_main
 from app.tlsfingerprint import main as tlsfingerprint_main
 from app.htmlreport import generate_html_report, save_html_report
@@ -71,7 +72,7 @@ def main():
         )
 
     if os.environ.get('GITHUB_ACTIONS') is None:
-        cliart_main.prints()
+        cliart_main()
 
     # Refang URL if it's defanged (hxxp, [.], etc.)
     args.target = refang_url(args.target)
@@ -119,6 +120,10 @@ def main():
     # NEW: Analytics and tracking code extraction
     analytics_data = analytics_main(requestobject)
 
+    # NEW: Content-leak & attribution scan (clearnet resources, Onion-Location,
+    # PGP/e-mail, body-hash pivot)
+    contentleak_data = contentleak_main(requestobject)
+
     # NEW: Robots.txt and sitemap analysis
     robotsmap_data = robotsmap_main(url_base, usetor=torstate)
 
@@ -144,7 +149,11 @@ def main():
         if itemsource is not None:
             opendir_main(itemsource)
             cryptocurrency_main(requestobject.text)
-    portscan_data = portscan_main(fqdn, useragent=args.useragent, usetor=torstate)
+    try:
+        portscan_data = portscan_main(fqdn, useragent=args.useragent, usetor=torstate)
+    except Exception as e:
+        logging.error('portscan failed (%s) - continuing without port data', e)
+        portscan_data = None
 
     # Calculate scan duration
     end_time = time.time()
@@ -181,6 +190,7 @@ def main():
                 'ports': portscan_data,
                 'favicon': favicon_data,
                 'analytics': analytics_data,
+                'contentleak': contentleak_data,
                 'robotsmap': robotsmap_data,
                 'tls_fingerprint': tlsfingerprint_data,
                 'cryptocurrency': cryptocurrency_data,

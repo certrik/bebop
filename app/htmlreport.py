@@ -235,6 +235,7 @@ def generate_html_report(scan_data):
             {_generate_tls_fingerprint_section(scan_data)}
             {_generate_favicon_section(scan_data)}
             {_generate_analytics_section(scan_data)}
+            {_generate_contentleak_section(scan_data)}
             {_generate_robotsmap_section(scan_data)}
             {_generate_cryptocurrency_section(scan_data)}
             {_generate_pagespider_section(scan_data)}
@@ -466,7 +467,7 @@ def _generate_title_section(data):
 
 def _generate_ports_section(data):
     """Generate open ports section"""
-    ports_data = data.get('ports', {})
+    ports_data = data.get('ports') or {}
     ports = ports_data.get('ports', [])
 
     if not ports:
@@ -730,6 +731,75 @@ def _generate_analytics_section(data):
     <div class="section">
         <h2 class="section-title">📈 Analytics & Tracking Codes</h2>
         {sections_html}
+    </div>
+    """
+    return html
+
+
+def _generate_contentleak_section(data):
+    """Generate content-leak & attribution section"""
+    leak = data.get('contentleak', {})
+    if not leak:
+        return ""
+
+    clearnet = leak.get('clearnet_resources', [])
+    outbound = leak.get('outbound_hosts', [])
+    onionloc = leak.get('onion_location', {})
+    pgp_keys = leak.get('pgp_keys', [])
+    emails = leak.get('emails', [])
+    body_hash = leak.get('body_hash')
+
+    if not (clearnet or outbound or onionloc or pgp_keys or emails or body_hash):
+        return ""
+
+    body = ""
+
+    if clearnet:
+        body += "<div class='subsection'><h3 class='subsection-title'>⚠️ Clearnet resources loaded by the page</h3>"
+        body += "<div class='table-container'><table><thead><tr><th>Clearnet host</th><th>Element</th><th>URL</th></tr></thead><tbody>"
+        for item in clearnet[:30]:
+            body += (f"<tr><td><code>{escape(item.get('host', ''))}</code></td>"
+                     f"<td>&lt;{escape(item.get('element', ''))} {escape(item.get('attribute', ''))}&gt;</td>"
+                     f"<td><code>{escape(item.get('url', ''))}</code></td></tr>")
+        body += "</tbody></table></div></div>"
+
+    if onionloc.get('onion_location'):
+        body += ("<div class='subsection'><h3 class='subsection-title'>Onion-Location header</h3>"
+                 f"<div class='list-item'><code>{escape(onionloc['onion_location'])}</code></div></div>")
+    if onionloc.get('canonical_links'):
+        body += "<div class='subsection'><h3 class='subsection-title'>Canonical / alternate links</h3>"
+        for canon in onionloc['canonical_links']:
+            body += f"<div class='list-item'><code>{escape(canon)}</code></div>"
+        body += "</div>"
+
+    if pgp_keys:
+        body += "<div class='subsection'><h3 class='subsection-title'>PGP public keys</h3>"
+        for key in pgp_keys:
+            body += f"<div class='list-item'>key id <code>{escape(key.get('id', ''))}</code></div>"
+        body += "</div>"
+
+    if emails:
+        body += "<div class='subsection'><h3 class='subsection-title'>Contact e-mails</h3>"
+        for email in emails[:30]:
+            body += f"<div class='list-item'><code>{escape(email)}</code></div>"
+        body += "</div>"
+
+    if outbound:
+        body += "<div class='subsection'><h3 class='subsection-title'>Outbound clearnet links</h3>"
+        for host in outbound[:30]:
+            body += f"<div class='list-item'><code>{escape(host)}</code></div>"
+        body += "</div>"
+
+    if body_hash:
+        body += ("<div class='subsection'><h3 class='subsection-title'>Body content hash (pivot)</h3>"
+                 f"<div class='info-item'><div class='label'>mmh3</div><div class='value'><code>{escape(str(body_hash.get('mmh3')))}</code></div></div>"
+                 f"<div class='info-item'><div class='label'>md5</div><div class='value'><code>{escape(str(body_hash.get('md5')))}</code></div></div>"
+                 f"<div class='info-item'><div class='label'>sha256</div><div class='value'><code>{escape(str(body_hash.get('sha256')))}</code></div></div></div>")
+
+    html = f"""
+    <div class="section">
+        <h2 class="section-title">🕵️ Content Leaks & Attribution</h2>
+        {body}
     </div>
     """
     return html
