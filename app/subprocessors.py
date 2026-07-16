@@ -14,6 +14,7 @@ FOFA_API_KEY = os.getenv('FOFA_API_KEY', None)
 FOFA_API_MAIL = os.getenv('FOFA_API_MAIL', None)
 SHODAN_API_KEY = os.getenv('SHODAN_API_KEY', None)
 URLSCAN_API_KEY = os.getenv('URLSCAN_API_KEY', None)
+MODAT_API_KEY = os.getenv('MODAT_API_KEY', None)
 ZOOMEYE_API_KEY = os.getenv('ZOOMEYE_API_KEY', None)
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY', None)
 SECURITYTRAILS_API_KEY = os.getenv('SECURITYTRAILS_API_KEY', None)
@@ -190,6 +191,57 @@ def query_fofa(squery):
             log.info('fofa: found ' + str(result[0]))
     else:
         log.warning('fofa: more than 20 results found. skipping query as it is not deemed rare.')
+    return findings
+
+def query_modat(squery):
+    '''
+    Query the Modat Magnify service-level search API.
+    https://api.magnify.modat.io/docs
+
+    Queries use the Modat query language (e.g. `web.title ~ "Login"`,
+    `tls.fingerprint_sha256:<hash>`).
+    '''
+    findings = []
+    if not MODAT_API_KEY:
+        log.warning("modat: without an api key queries are skipped")
+        return findings
+    if not squery:
+        log.error("modat: no query provided")
+        return findings
+    log.debug('modat: querying %s', squery)
+
+    headers = {
+        'Authorization': f'Bearer {MODAT_API_KEY}',
+        'Content-Type': 'application/json',
+    }
+    # page_size accepts 10-100; 20 lets us confirm the rarity threshold in one page.
+    payload = {'query': squery, 'page': 1, 'page_size': 20}
+
+    try:
+        results = requests.post('https://api.magnify.modat.io/service/search/v1',
+                                json=payload,
+                                headers=headers,
+                                timeout=10)
+        results.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        log.error('modat: HTTP error: %s', e)
+        if e.response is not None:
+            log.error('Response status code: %s', e.response.status_code)
+            log.error('Response content: %s', e.response.text)
+        return findings
+    except requests.exceptions.RequestException as e:
+        log.error('modat: request exception: %s', e)
+        return findings
+
+    results_data = results.json()
+    total_results = results_data.get('total_records', 0)
+    log.info('modat: found %s results for %s', total_results, squery)
+    if total_results <= 20:
+        for result in results_data.get('page', []):
+            findings.append(result)
+            log.info('modat: found %s', result.get('ip'))
+    else:
+        log.warning('modat: more than 20 results found. skipping query as it is not deemed rare.')
     return findings
 
 def query_shodanindernetdb(ip):

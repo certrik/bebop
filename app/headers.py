@@ -3,7 +3,7 @@
 import logging
 import re
 from urllib.parse import urlparse
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa, query_modat
 
 logger = logging.getLogger('bebop')
 
@@ -138,7 +138,7 @@ def analyze_security_headers(requestobject):
     return findings
 
 
-def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True):
+def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True, domodat=True):
     """
     Process HTTP headers from a request
     """
@@ -177,6 +177,8 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
                     query_censys(f'host.dns.names="{domain}"')
                 if dozoome:
                     query_zoomeye(f'hostname:"{domain}"')
+                if domodat:
+                    query_modat(f'fqdns:{domain}')
 
     # Analyze CORS header
     if 'access-control-allow-origin' in requestobject.headers:
@@ -192,6 +194,8 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
                 query_censys(f'host.dns.names="{cors_origin}"')
             if dozoome:
                 query_zoomeye(f'hostname:"{cors_origin}"')
+            if domodat:
+                query_modat(f'fqdns:{cors_origin}')
 
     # Extract HTTP/2 info
     http2_info = extract_http2_info(requestobject)

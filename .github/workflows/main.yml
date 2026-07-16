@@ -66,6 +66,7 @@ jobs:
           CENSYS_ORGANIZATION_ID: ${{ secrets.CENSYS_ORGANIZATION_ID }}
           FOFA_API_KEY: ${{ secrets.FOFA_API_KEY }}
           FOFA_API_MAIL: ${{ secrets.FOFA_API_MAIL }}
+          MODAT_API_KEY: ${{ secrets.MODAT_API_KEY }}
           SECURITYTRAILS_API_KEY: ${{ secrets.SECURITYTRAILS_API_KEY }}
           SHODAN_API_KEY: ${{ secrets.SHODAN_API_KEY }}
           URLSCAN_API_KEY: ${{ secrets.URLSCAN_API_KEY }}

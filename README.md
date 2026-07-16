@@ -127,7 +127,7 @@ field extractions for bitcoin, monero and ethereum - leveraging blockcypher & wa
 - the favicon discovery will attempt to parse the icon from any HTML, falling back to hardcoded paths
 - if found, the favicon is downloaded and an [MurmurHash](https://commons.apache.org/proper/commons-codec/apidocs/org/apache/commons/codec/digest/MurmurHash3.html) is computed
 - the hash is searched against the following engines where credentials are provided
-`shodan:http.favicon.hash`, `censys:host.services.http.response.favicons.md5_hash` & `zoomeye:iconhash`
+`shodan:http.favicon.hash`, `censys:host.services.http.response.favicons.md5_hash`, `zoomeye:iconhash` & `modat:web.favicon.mmh3`
 
 _to avoid noise, a list of the top 200 favicons have been added to this repository - if a finding is matched, it will not be considered unique - see the housekeeping section for details_
 
@@ -304,6 +304,7 @@ _using one, any or all external data repositories is optional and only done when
 | Shodan            | `SHODAN_API_KEY`                      | [account.shodan.io](https://account.shodan.io)                                                   |
 | FOFA              | `FOFA_API_KEY`                        | [en.fofa.info](https://en.fofa.info/userInfo)                                                    |
 | ZoomEye           | `ZOOMEYE_API_KEY`                     | [zoomeye.ai/profile](https://www.zoomeye.ai/profile)                                             |
+| Modat Magnify     | `MODAT_API_KEY`                       | [magnify.modat.io](https://magnify.modat.io)                                                     |
 | urlscan           | `URLSCAN_API_KEY`                     | [urlscan.io/user/profile](https://urlscan.io/user/profile/)                                      |
 | VirusTotal        | `VIRUSTOTAL_API_KEY`                  | [support.virustotal.com](https://support.virustotal.com/hc/en-us/articles/115002100149-API)      |
 | SecurityTrails    | `SECURITYTRAILS_API_KEY`              | [securitytrails.com/app/account/credentials](https://securitytrails.com/app/account/credentials) |
@@ -352,6 +353,7 @@ The GitHub Actions workflow automatically sets up a Tor proxy for you. If you wa
    - `CENSYS_ORGANIZATION_ID`
    - `FOFA_API_KEY`
    - `FOFA_API_MAIL`
+   - `MODAT_API_KEY`
    - `SECURITYTRAILS_API_KEY`
    - `SHODAN_API_KEY`
    - `URLSCAN_API_KEY`
@@ -399,6 +401,8 @@ used 11 out of 1000 avail credits for today
 used 23 out of 500 avail credits for today
 used 0 out of 240 avail credits for current hour
 used 23 out of 1000000000 avail credits for current month
+############## Modat Magnify
+487 of 500 searches remaining, 48213 of 50000 results remaining
 ```
 
 # housekeeping

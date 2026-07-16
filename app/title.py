@@ -4,7 +4,7 @@ import logging
 import warnings
 from bs4 import BeautifulSoup
 
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa, query_modat
 
 log = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
@@ -15,7 +15,7 @@ with open('common/http-titles.txt', 'r', encoding='utf-8') as common_titles_file
         common_titles.append(line.strip())
     common_titles_file.close()
 
-def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True):
+def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True, domodat=True):
     soup = BeautifulSoup(requestobject.text, 'html.parser')
     title = soup.find('title')
     if title is not None:
@@ -30,6 +30,8 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
                 query_zoomeye('title:"' + title.text + '"')
             if dofofa:
                 query_fofa('title=' + str(title.text))
+            if domodat:
+                query_modat('web.title ~ "' + title.text + '"')
         return title.text
     log.warning('failed to extract title from %s', requestobject.url)
     return None

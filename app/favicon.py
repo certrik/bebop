@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 from app.getpage import main as getpage_main
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa, query_modat
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def process_favicon(domain, requestobject, usetor=True):
         log.error("error processing favicon for %s: %s", domain, e)
     return None, None, None
 
-def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoome=True, dofofa=True):
+def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoome=True, dofofa=True, domodat=True):
     faviconmmh3, faviconmd5, location = process_favicon(domain, requestobject, usetor)
     if faviconmmh3 is None:
         return None
@@ -98,6 +98,8 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
         query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:
         query_fofa('icon_hash=' + str(faviconmmh3))
+    if domodat is True:
+        query_modat('web.favicon.mmh3:' + str(faviconmmh3))
     return {
         'mmh3': faviconmmh3,
         'md5': faviconmd5,
