@@ -10,10 +10,12 @@ log = logging.getLogger(__name__)
 # ZoomEye
 if os.getenv('ZOOMEYE_API_KEY', None) != None:
     zoomeye_authkey = os.getenv('ZOOMEYE_API_KEY')
-    zoomeye_data = requests.get('https://api.zoomeye.ai/user/info', headers={'API-KEY': zoomeye_authkey})
-    requests_left = zoomeye_data.json()['quota']['Remaining-Query-Credit']
+    # Legacy /user/info was retired with the v2 API rollout.
+    zoomeye_data = requests.get('https://api.zoomeye.ai/v2/userinfo', headers={'API-KEY': zoomeye_authkey})
+    subscription = zoomeye_data.json().get('data', {}).get('subscription', {})
     print('############# ZoomEye')
-    print('{} remaining credits'.format(requests_left))
+    print('{} free points, {} paid points remaining'.format(
+        subscription.get('points'), subscription.get('zoomeye_points')))
 else:
     log.error('ZOOMEYE_API_KEY missing')
 

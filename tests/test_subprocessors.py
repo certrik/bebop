@@ -28,31 +28,37 @@ class TestSubprocessors(unittest.TestCase):
     def tearDown(self):
         self.env_patcher.stop()
 
-    @patch('requests.get')
-    def test_query_zoomeye(self, mock_get):
-        # Test successful query
+    @patch('requests.post')
+    def test_query_zoomeye(self, mock_post):
+        # Test successful query (ZoomEye v2 /v2/search response shape)
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
+            'code': 60000,
             'total': 2,
-            'matches': [
-                {'ip': '1.1.1.1', 'portinfo': {'banner': 'test banner 1'}},
-                {'ip': '2.2.2.2', 'portinfo': {'banner': 'test banner 2'}}
+            'data': [
+                {'ip': '1.1.1.1', 'port': 80, 'banner': 'test banner 1'},
+                {'ip': '2.2.2.2', 'port': 443, 'banner': 'test banner 2'}
             ]
         }
-        mock_get.return_value = mock_response
+        mock_post.return_value = mock_response
 
         results = subprocessors.query_zoomeye('test query')
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]['ip'], '1.1.1.1')
-        
+
         # Test query with too many results
-        mock_response.json.return_value = {'total': 21, 'matches': []}
+        mock_response.json.return_value = {'code': 60000, 'total': 21, 'data': []}
+        results = subprocessors.query_zoomeye('test query')
+        self.assertEqual(len(results), 0)
+
+        # Test API-level error code
+        mock_response.json.return_value = {'code': 60001, 'message': 'auth failed'}
         results = subprocessors.query_zoomeye('test query')
         self.assertEqual(len(results), 0)
 
         # Test HTTP error
-        mock_get.side_effect = requests.exceptions.HTTPError()
+        mock_post.side_effect = requests.exceptions.HTTPError()
         results = subprocessors.query_zoomeye('test query')
         self.assertEqual(len(results), 0)
 

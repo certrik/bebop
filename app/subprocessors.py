@@ -42,34 +42,47 @@ def query_zoomeye(squery):
 
     headers = {
         'API-KEY': ZOOMEYE_API_KEY,
+        'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0'
     }
 
-    params = {'query': squery}
+    # The legacy GET /host/search endpoint has been retired. ZoomEye v2 expects
+    # a POST to /v2/search with the dork base64-encoded in the qbase64 field.
+    payload = {
+        'qbase64': base64.b64encode(squery.encode('utf-8')).decode('utf-8'),
+        'page': 1,
+        'pagesize': 20,
+    }
 
     try:
-        results = requests.get('https://api.zoomeye.ai/host/search',
-                               params=params,
-                               headers=headers)
+        results = requests.post('https://api.zoomeye.ai/v2/search',
+                                json=payload,
+                                headers=headers,
+                                timeout=10)
         results.raise_for_status()
     except requests.exceptions.HTTPError as e:
         log.error('zoomeye: HTTP error: %s', e)
-        log.error('Response status code: %s', e.response.status_code)
-        log.error('Response content: %s', e.response.text)
+        if e.response is not None:
+            log.error('Response status code: %s', e.response.status_code)
+            log.error('Response content: %s', e.response.text)
         return findings
     except requests.exceptions.RequestException as e:
         log.error('zoomeye: Request exception: %s', e)
         return findings
 
     results_data = results.json()
+    if results_data.get('code') != 60000:
+        log.error('zoomeye: api error: %s - %s',
+                  results_data.get('code'), results_data.get('message'))
+        return findings
     total_results = results_data.get('total', 0)
     log.info('zoomeye: found %s results for %s', total_results, squery)
 
     if total_results <= 20:
-        for result in results_data.get('matches', []):
+        for result in results_data.get('data', []):
             findings.append(result)
             log.info('zoomeye: found %s', result.get('ip'))
-            log.debug('zoomeye: %s', result.get('portinfo', {}).get('banner'))
+            log.debug('zoomeye: %s', result.get('banner'))
     else:
         log.warning('zoomeye: more than 20 results found. Skipping query as it is not deemed rare.')
     return findings
