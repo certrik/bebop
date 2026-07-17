@@ -10,7 +10,7 @@ from app import oob
 
 def _args(**kw):
     defaults = dict(oob_callback=None, oob_poll_url=None, oob_scheme=None,
-                    oob_inject=None, oob_wait=None, oob_path_style=False)
+                    oob_inject=None, oob_wait=None, oob_path_style=None)
     defaults.update(kw)
     return types.SimpleNamespace(**defaults)
 
@@ -35,6 +35,16 @@ class TestConfigResolution(unittest.TestCase):
         cfg = oob.resolve_config(_args(), env=env)
         self.assertEqual(cfg['host'], 'listen.example.net')
         self.assertEqual(cfg['inject'], ['https://t/?url={CALLBACK}'])
+
+    def test_path_style_env_truthiness(self):
+        # non-empty env strings must not all read as True (plain bool() trap)
+        for val, expect in [('1', True), ('true', True), ('YES', True),
+                            ('on', True), ('0', False), ('false', False), ('', False)]:
+            env = {'BEBOP_OOB_CALLBACK': 'h', 'BEBOP_OOB_PATH_STYLE': val}
+            self.assertEqual(oob.resolve_config(_args(), env=env)['path_style'], expect,
+                             f'BEBOP_OOB_PATH_STYLE={val!r}')
+        # CLI bool still works
+        self.assertTrue(oob.resolve_config(_args(oob_callback='h', oob_path_style=True), env={})['path_style'])
 
 
 class TestCallbackUrl(unittest.TestCase):
