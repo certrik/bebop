@@ -129,7 +129,8 @@ def query_censys(squery):
         else:
             log.warning('censys: more than 20 results found. skipping query as it is not deemed rare.')
     except Exception as e:
-        log.error('censys: api error: %s', e)
+        # a rejected query/field is a non-fatal enrichment miss, not an error
+        log.warning('censys: query rejected: %s', e)
     return findings
 
 def query_shodan(squery):
@@ -234,13 +235,12 @@ def query_modat(squery):
                                 timeout=10)
         results.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        log.error('modat: HTTP error: %s', e)
-        if e.response is not None:
-            log.error('Response status code: %s', e.response.status_code)
-            log.error('Response content: %s', e.response.text)
+        # a bad query/field (422) is a non-fatal enrichment miss, not an error
+        detail = e.response.text if e.response is not None else ''
+        log.warning('modat: query rejected (%s) %s', e, detail)
         return findings
     except requests.exceptions.RequestException as e:
-        log.error('modat: request exception: %s', e)
+        log.warning('modat: request exception: %s', e)
         return findings
 
     results_data = results.json()
