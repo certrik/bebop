@@ -89,6 +89,34 @@ For OOB under CI, the **trigger** still egresses over Tor; only the **poll**
 touches your own listener. Poll from infrastructure you are willing to burn, and
 keep your `BEBOP_OOB_*` secrets scoped to a repository you control.
 
+### Can I use the GitHub runner itself as the callback listener?
+
+**No.** Two independent blockers:
+
+1. **Runners are egress-only.** GitHub-hosted runners are behind NAT, ephemeral,
+   and have no inbound reachability. Nothing on the public internet — including
+   the target origin — can initiate a connection *to* the runner, so the origin
+   cannot "call back to the runner's IP." There is no socket you can bind that
+   the target could reach.
+2. **GitHub exposes no source-IP-logging surface.** Even where GitHub serves
+   your content publicly (Pages, gists, raw URLs, the API), you do not get access
+   logs with the client's IP. There is no GitHub endpoint you can point a
+   callback at and later read "who connected." So a github.com-owned IP cannot be
+   repurposed as a listener either.
+
+What already uses GitHub's (shared Azure) egress IP: the OOB **trigger** (but
+that rides over Tor), the **poll** of your own listener, and the clearnet
+**confirmation** fetch (this one does show the runner's egress IP to candidate
+origins — attributable to "a GitHub Actions runner", not to you personally).
+
+To receive the callback in CI you still need an **externally reachable**
+listener, and whatever hosts it is what the operator sees: an external sink
+(interactsh / VPS / webhook.site / Collaborator) shows *that host's* IP, or a
+tunnel from the runner (cloudflared/ngrok) shows the *tunnel provider's* IP and
+is tied to your tunnel account. **The listener is the exposed leg, and it can
+never be GitHub's IP** — GitHub's egress ranges are shared and not-yours, but
+they are not a listener.
+
 ## Summary table
 
 | Activity | Rides over Tor? | Exposes researcher? |
