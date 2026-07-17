@@ -214,7 +214,7 @@ def portdata(port):
 
     return portinf
 
-def main(fqdn, useragent, usetor=True, max_scanport=40):
+def main(fqdn, useragent, usetor=True, max_scanport=200):
     command='\
 nmap -sT -PN -n -sV --open -oX - --top-ports %s \
 --version-intensity 4 --script ssh-hostkey,ssh-auth-methods,banner \
