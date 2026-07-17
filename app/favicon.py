@@ -97,7 +97,9 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
         query_shodan('http.favicon.hash:' + str(faviconmmh3))
     if docensys is True and faviconmd5:
         # Platform v3: the favicon lives on the web dataset (mirrors headers/title).
-        query_censys('web.endpoints.http.favicons.md5_hash="' + str(faviconmd5) + '"')
+        # Censys prefixes the algorithm - the leaf is hash_md5, NOT md5_hash
+        # (md5_hash 422s "Field not found"). Verified round-trip on a real value.
+        query_censys('web.endpoints.http.favicons.hash_md5="' + str(faviconmd5) + '"')
     if dozoome is True:
         query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:
