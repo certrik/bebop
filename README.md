@@ -7,20 +7,20 @@ bebop uncloaks misconfigured web services, helping with many of the mundane task
 ```mermaid
 graph LR
     subgraph subprocessors
-        subgraph netscans[scan data]
+        subgraph netscans["scan data"]
         shodan
         fofa
         censys
         zoomeye
         modat
         end
-        subgraph pdns[passive dns / resolutions]
+        subgraph pdns["passive dns / resolutions"]
         virustotal
         urlscan
         securitytrails
         validin
         end
-        subgraph coins[coin data]
+        subgraph coins["coin data"]
         blockcypher
         walletexplorer
         blockcypher -.pivot.-> walletexplorer
@@ -28,27 +28,27 @@ graph LR
         end
     end
 
-    anchor([input onion url]) --> mainget[get site content]
-    mainget --> catchallchk{catchall check}
-    catchallchk -- no --> fuzz[directory / file enumeration]
-    fuzz -.-> fuzzlist[(fuzzlist)]
+    anchor(["input onion url"]) --> mainget["get site content"]
+    mainget --> catchallchk{"catchall check"}
+    catchallchk -- no --> fuzz["directory / file enumeration"]
+    fuzz -.-> fuzzlist[("fuzzlist")]
     fuzzlist -.-> fuzz
 
-    anchor --> scan[port / service scan]
-    anchor --> checker[config checks]
-    checker -.-> checks[server-status, robots.txt, etc]
+    anchor --> scan["port / service scan"]
+    anchor --> checker["config checks"]
+    checker -.-> checks["server-status, robots.txt, etc"]
 
-    mainget --> favicon[favicon fuzzyhash]
-    mainget --> sslserial[ssl serial]
-    mainget --> jarm[jarm fingerprint]
-    mainget --> title[page title]
-    mainget --> headers[inspect headers]
-    mainget --> body[body hash]
-    mainget --> leaks[content leaks: clearnet refs, pgp, email]
-    mainget --> spider[spider recursive pages]
-    mainget --> cryptoc[check for wallets]
+    mainget --> favicon["favicon fuzzyhash"]
+    mainget --> sslserial["ssl serial"]
+    mainget --> jarm["jarm fingerprint"]
+    mainget --> title["page title"]
+    mainget --> headers["inspect headers"]
+    mainget --> body["body hash"]
+    mainget --> leaks["content leaks: clearnet refs, pgp, email"]
+    mainget --> spider["spider recursive pages"]
+    mainget --> cryptoc["check for wallets"]
 
-    lookupsaver[(if rare value)]
+    lookupsaver[("if rare value")]
     favicon --> lookupsaver
     sslserial --> lookupsaver
     jarm --> lookupsaver
@@ -59,15 +59,15 @@ graph LR
     lookupsaver --> validin
 
     netscans -- if ip found --> pdns
-    cryptoc -.-> ifsupportedcoin[/LTC XMR BTC/]
+    cryptoc -.-> ifsupportedcoin["LTC XMR BTC"]
     ifsupportedcoin --> coins
 
-    netscans --> candidates[(candidate origins)]
+    netscans --> candidates[("candidate origins")]
     pdns --> candidates
     validin --> candidates
-    candidates --> correlate[correlate: rank by corroborating selectors]
-    correlate --> confirm[confirm: fetch clearnet, diff vs onion baseline]
-    confirm --> verdict([ranked deanon verdict])
+    candidates --> correlate["correlate: rank by corroborating selectors"]
+    correlate --> confirm["confirm: fetch clearnet, diff vs onion baseline"]
+    confirm --> verdict(["ranked deanon verdict"])
 ```
 
 # methods
