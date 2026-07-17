@@ -7,55 +7,67 @@ bebop uncloaks misconfigured web services, helping with many of the mundane task
 ```mermaid
 graph LR
     subgraph subprocessors
-        subgraph cryptocurrency[coin data]
-        blockcypher
-        walletexplorer
-        blockcypher -..-> |pivot|walletexplorer
-        walletexplorer -..-> blockcypher
-        end
         subgraph netscans[scan data]
         shodan
         fofa
         censys
         zoomeye
+        modat
         end
-    end
-    subgraph domain[discover resolving domains]
+        subgraph pdns[passive dns / resolutions]
         virustotal
         urlscan
         securitytrails
         validin
+        end
+        subgraph coins[coin data]
+        blockcypher
+        walletexplorer
+        blockcypher -.pivot.-> walletexplorer
+        walletexplorer -.-> blockcypher
+        end
     end
-    netscans --> |if ip found|domain
-    lookupsaver[(if rare value)]
-    fuzzlist[(fuzzlist)]
-    opndir[check for open directories]
-    cryptoc[check for wallets]
-    checks([/server-status\n/robots.txt\netc])
-    anchor([input url]) -->mainget>get site content]
+
+    anchor([input onion url]) --> mainget[get site content]
     mainget --> catchallchk{catchall check}
-    catchallchk -- no --> fuzz[directory/file enumeration]
-    fuzz -..-> fuzzlist
-    fuzzlist -..-> fuzz
-    anchor --> scan(port/service scan)
-    anchor --> checker(config checks)
-    checker -..-> checks
-    mainget --> favicon[get favicon fuzzyhash]
-    mainget --> sslserial[get ssl serial]
-    sslserial --> lookupsaver
-    favicon --> lookupsaver
-    mainget --> title[fetch page title]
-    title --> lookupsaver
+    catchallchk -- no --> fuzz[directory / file enumeration]
+    fuzz -.-> fuzzlist[(fuzzlist)]
+    fuzzlist -.-> fuzz
+
+    anchor --> scan[port / service scan]
+    anchor --> checker[config checks]
+    checker -.-> checks[server-status, robots.txt, etc]
+
+    mainget --> favicon[favicon fuzzyhash]
+    mainget --> sslserial[ssl serial]
+    mainget --> jarm[jarm fingerprint]
+    mainget --> title[page title]
     mainget --> headers[inspect headers]
-    headers --> |if etag|netscans
-    lookupsaver --> netscans
+    mainget --> body[body hash]
+    mainget --> leaks[content leaks: clearnet refs, pgp, email]
     mainget --> spider[spider recursive pages]
-    mainget --> opndir
-    spider --> opndir
-    mainget --> cryptoc
-    spider --> cryptoc
-    cryptoc -..-> ifsupportedcoin[/if LTC/XMR/BTC/]
-    ifsupportedcoin --> cryptocurrency
+    mainget --> cryptoc[check for wallets]
+
+    lookupsaver[(if rare value)]
+    favicon --> lookupsaver
+    sslserial --> lookupsaver
+    jarm --> lookupsaver
+    title --> lookupsaver
+    body --> lookupsaver
+    headers -- if etag --> lookupsaver
+    lookupsaver --> netscans
+    lookupsaver --> validin
+
+    netscans -- if ip found --> pdns
+    cryptoc -.-> ifsupportedcoin[/LTC XMR BTC/]
+    ifsupportedcoin --> coins
+
+    netscans --> candidates[(candidate origins)]
+    pdns --> candidates
+    validin --> candidates
+    candidates --> correlate[correlate: rank by corroborating selectors]
+    correlate --> confirm[confirm: fetch clearnet, diff vs onion baseline]
+    confirm --> verdict([ranked deanon verdict])
 ```
 
 # methods
