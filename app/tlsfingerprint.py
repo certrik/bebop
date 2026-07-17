@@ -7,7 +7,7 @@ import hashlib
 import struct
 from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_modat, query_validin_pivot
 from app.jarm import compute_jarm
-from app.utilities import getsocks
+from app.utilities import getproxyvalue
 
 logger = logging.getLogger('bebop')
 
@@ -65,15 +65,9 @@ def probe_tls_connection(hostname, port, tls_version, usetor=True):
             try:
                 import socks
                 sock = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
-                proxy = getsocks()
-                if proxy and 'socks5' in proxy.get('http', ''):
-                    # Extract proxy host and port
-                    import re
-                    match = re.search(r'socks5h?://([^:]+):(\d+)', proxy['http'])
-                    if match:
-                        proxy_host, proxy_port = match.groups()
-                        # rdns=True so .onion hostnames resolve via the Tor proxy
-                        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port), rdns=True)
+                proxy_host, proxy_port = getproxyvalue()
+                # rdns=True so the .onion is resolved by the Tor proxy
+                sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port), rdns=True)
             except ImportError:
                 logger.warning("PySocks not available for Tor routing in TLS probe")
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,9 +76,13 @@ def probe_tls_connection(hostname, port, tls_version, usetor=True):
 
         sock.settimeout(10)
 
-        # Wrap socket with SSL
+        # Connect the (SOCKS) socket FIRST, then wrap it. ssl.SSLSocket.connect
+        # bypasses PySocks' socksocket.connect override and would resolve the
+        # .onion locally ("Name or service not known"); connecting the raw
+        # socket routes through the proxy, and wrapping an already-connected
+        # socket runs the TLS handshake in place.
+        sock.connect((hostname, port))
         wrapped_socket = context.wrap_socket(sock, server_hostname=hostname)
-        wrapped_socket.connect((hostname, port))
 
         # Get cipher info
         cipher = wrapped_socket.cipher()
@@ -191,14 +189,9 @@ def extract_cert_fingerprints(hostname, port, usetor=True):
             try:
                 import socks
                 sock = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
-                proxy = getsocks()
-                if proxy and 'socks5' in proxy.get('http', ''):
-                    import re
-                    match = re.search(r'socks5h?://([^:]+):(\d+)', proxy['http'])
-                    if match:
-                        proxy_host, proxy_port = match.groups()
-                        # rdns=True so .onion hostnames resolve via the Tor proxy
-                        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port), rdns=True)
+                proxy_host, proxy_port = getproxyvalue()
+                # rdns=True so the .onion is resolved by the Tor proxy
+                sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port), rdns=True)
             except ImportError:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
@@ -206,8 +199,10 @@ def extract_cert_fingerprints(hostname, port, usetor=True):
 
         sock.settimeout(10)
 
+        # Connect the (SOCKS) socket before wrapping - see probe_tls_connection:
+        # wrapping first and calling SSLSocket.connect bypasses the proxy.
+        sock.connect((hostname, port))
         wrapped_socket = context.wrap_socket(sock, server_hostname=hostname)
-        wrapped_socket.connect((hostname, port))
 
         # Get certificate
         cert_der = wrapped_socket.getpeercert(binary_form=True)
