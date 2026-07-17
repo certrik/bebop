@@ -76,6 +76,38 @@ class TestCorrelate(unittest.TestCase):
         self.assertEqual(conf['verdict'], 'UNREACHABLE')
         self.assertFalse(conf['reachable'])
 
+    def test_reverse_resolve_only_ips_and_confirms(self):
+        baseline = {'body_sha256': hashlib.sha256(ONION_HTML.encode()).hexdigest(),
+                    'title': 'Hidden Market', 'server': 'nginx'}
+        results = [
+            {'candidate': '5.5.5.5', 'categories': ['favicon', 'jarm'], 'category_count': 2,
+             'sources': ['shodan'], 'confirmation': {'verdict': 'NO_MATCH', 'matches': []}},
+            {'candidate': 'skip.example', 'categories': ['favicon'], 'category_count': 1,
+             'sources': ['shodan'], 'confirmation': {'verdict': 'NO_MATCH', 'matches': []}},
+        ]
+
+        def resolver(ip):
+            # urlscan/VT/etc. reverse-resolution: IP -> associated domains
+            return ['origin.example'] if ip == '5.5.5.5' else []
+
+        def fetch(u):
+            return fake_resp(ONION_HTML, 'nginx') if 'origin.example' in u else None
+
+        rev_map, new_records = correlate.reverse_resolve_and_confirm(
+            results, resolver, baseline, fetch)
+
+        # only the IP candidate was reverse-resolved, not the hostname
+        self.assertEqual(rev_map, {'5.5.5.5': ['origin.example']})
+        self.assertEqual(len(new_records), 1)
+        rec = new_records[0]
+        self.assertEqual(rec['candidate'], 'origin.example')
+        self.assertEqual(rec['from_ip'], '5.5.5.5')
+        self.assertEqual(rec['sources'], ['finddomains'])
+        # the reverse-resolved domain serves the onion's page -> CONFIRMED
+        self.assertEqual(rec['confirmation']['verdict'], 'CONFIRMED')
+        # and it is now a registered candidate
+        self.assertIn('origin.example', dict(correlate.ranked_candidates()))
+
     def test_end_to_end_ranks_confirmed_first(self):
         baseline = {'body_sha256': hashlib.sha256(ONION_HTML.encode()).hexdigest(),
                     'title': 'Hidden Market', 'server': 'nginx'}

@@ -186,9 +186,17 @@ def main():
         'favicon_md5': (favicon_data or {}).get('md5'),
         'jarm': (tlsfingerprint_data or {}).get('jarm'),
     }
+    reverse_resolved = {}
     try:
         deanon_candidates = correlate.correlate_and_confirm(
             baseline, fetch_fn=lambda u: getpage_main(u, usetor=False))
+        # Second-order: reverse-resolve candidate IPs (urlscan/VT/SecurityTrails/
+        # Validin) into domains, confirm them, and fold them into the ranking.
+        reverse_resolved, reverse_records = correlate.reverse_resolve_and_confirm(
+            deanon_candidates, finddomains_main, baseline,
+            fetch_fn=lambda u: getpage_main(u, usetor=False))
+        if reverse_records:
+            deanon_candidates = correlate.rank_results(deanon_candidates + reverse_records)
     except Exception as e:
         logging.error('correlation/confirmation failed (%s)', e)
         deanon_candidates = []
@@ -234,7 +242,8 @@ def main():
                 'cryptocurrency': cryptocurrency_data,
                 'pagespider': pagespider_data,
                 'domains': domains_data,
-                'deanon_candidates': deanon_candidates
+                'deanon_candidates': deanon_candidates,
+                'reverse_resolved': reverse_resolved
             }
 
             # Generate HTML
