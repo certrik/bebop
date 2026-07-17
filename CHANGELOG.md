@@ -22,6 +22,15 @@ the onion baseline.
   (resolutions plus hash/certificate/JARM pivots).
 
 #### Deanonymization techniques
+- **Out-of-band (OOB) callback deanon** (`app/oob.py`, opt-in via
+  `--oob-callback` or `BEBOP_OOB_*` env for CI): actively induces the target to
+  connect back to a researcher-controlled listener (WordPress XML-RPC
+  `pingback.ping` and generic `--oob-inject` SSRF templates). The trigger rides
+  over Tor; the listener records the origin's real clearnet egress IP, which is
+  registered as a candidate and confirmed against the onion baseline. **Active,
+  intrusive, and attributable — it exposes the researcher's callback
+  infrastructure to the target.** See `OPSEC.md` and the OPSEC section in
+  `app/oob.py`. Disabled by default.
 - **Config-check origin extraction**: matched misconfiguration leaks are now
   mined for the origin's real addressing (public IPs, `SERVER_ADDR`, Prometheus
   `instance=` labels, Consul addresses, internal hostnames in DB/URL strings).

@@ -39,6 +39,7 @@ _CATEGORY_RULES = [
     ('header', ('etag', 'header.server', 'headers.server', 'header.etag')),
     ('pdns', ('pdns', 'resolution')),
     ('origin_leak', ('configcheck', 'origin_leak', 'server_addr')),
+    ('oob', ('oob', 'pingback', 'callback', 'ssrf')),
 ]
 
 _candidates = {}

@@ -24,6 +24,7 @@ from app.analytics import main as analytics_main
 from app.contentleak import main as contentleak_main
 from app.robotsmap import main as robotsmap_main
 from app import correlate
+from app import oob
 from app.tlsfingerprint import main as tlsfingerprint_main
 from app.htmlreport import generate_html_report, save_html_report
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport, refang_url
@@ -49,6 +50,26 @@ def main():
     parser.add_argument('--html-report',
                         help='generate HTML report (file path)',
                         default=None)
+    # --- out-of-band callback deanonymisation (ACTIVE / opt-in) ---
+    # WARNING: this induces the target to connect back to your listener, which
+    # exposes your callback infrastructure to the target operator. The Tor
+    # anonymity on the probe leg does NOT cover the callback leg. See app/oob.py.
+    # Every option can also be supplied via BEBOP_OOB_* env vars (for CI).
+    parser.add_argument('--oob-callback',
+                        help='ACTIVE deanon: callback host you control (e.g. an '
+                             'interactsh/collaborator host). Enables OOB. See '
+                             'OPSEC notes in app/oob.py - this can expose YOU.',
+                        default=None)
+    parser.add_argument('--oob-poll-url',
+                        help='listener poll URL template ({TOKEN} substituted) '
+                             'returning JSON interactions',
+                        default=None)
+    parser.add_argument('--oob-scheme', help='callback scheme (default http)', default=None)
+    parser.add_argument('--oob-inject', action='append',
+                        help='SSRF URL template with {CALLBACK} (repeatable)', default=None)
+    parser.add_argument('--oob-wait', help='seconds to wait for a callback (default 25)', default=None)
+    parser.add_argument('--oob-path-style', action='store_true',
+                        help='use host/token instead of token.host callbacks', default=False)
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -150,6 +171,17 @@ def main():
     if leaked_public_ips or leaked_hostnames:
         logging.warning('config checks leaked origin indicators - IPs: %s hostnames: %s',
                         sorted(leaked_public_ips), sorted(leaked_hostnames))
+
+    # ACTIVE out-of-band deanon (opt-in). Trigger the callback here so the rest
+    # of the scan doubles as the wait window; the listener is polled later. This
+    # is intrusive and exposes the researcher's callback host - see app/oob.py.
+    oob_config = oob.resolve_config(args)
+    oob_state = None
+    if oob_config:
+        try:
+            oob_state = oob.trigger(url_base, oob_config, usetor=torstate)
+        except Exception as e:
+            logging.error('oob trigger failed (%s) - continuing', e)
     favicon_data = favicon_main(url_base, requestobject, usetor=torstate)
     pagespider_data = pagespider_main(requestobject, usetor=torstate, skip_queryurl=True)
     cryptocurrency_data = cryptocurrency_main(requestobject.text)
@@ -233,6 +265,25 @@ def main():
         except Exception as e:
             logging.debug('origin-leak confirmation failed for %s: %s', _ip, e)
 
+    # Collect any OOB callbacks the target made to the researcher's listener. A
+    # recorded source IP is the origin's real clearnet egress - a direct deanon.
+    oob_result = None
+    if oob_state is not None:
+        try:
+            oob_result = oob.poll(oob_config, oob_state)
+            for _ip in oob_result.get('source_ips', []):
+                correlate.add_candidate(_ip, 'oob', f'oob:callback:{oob_state["token"]}')
+                try:
+                    verdict = correlate.confirm_candidate(
+                        _ip, baseline, fetch_fn=lambda u: getpage_main(u, usetor=False))
+                    oob_result.setdefault('confirmations', []).append(verdict)
+                    logging.warning('OOB deanon: origin called back from %s => %s',
+                                    _ip, verdict.get('verdict'))
+                except Exception as e:
+                    logging.debug('oob confirmation failed for %s: %s', _ip, e)
+        except Exception as e:
+            logging.error('oob poll failed (%s)', e)
+
     # Calculate scan duration
     end_time = time.time()
     duration = end_time - start_time
@@ -262,6 +313,7 @@ def main():
                 },
                 'discovered_paths': discovered_paths or [],
                 'origin_leaks': origin_leaks,
+                'oob': oob_result,
                 'headers': header_data,
                 'all_headers': dict(requestobject.headers),  # Pass all raw headers
                 'title': title_data,
