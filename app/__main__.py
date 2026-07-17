@@ -90,9 +90,11 @@ def main():
         torstate = True
         preflight()
 
+    protocol_assumed = False
     if not validurl(args.target):
         if validurl('http://' + args.target):
             args.target = 'http://' + args.target
+            protocol_assumed = True
             logging.warning('no protocol provided, appending (now: %s)', args.target)
         else:
             logging.critical('failed to parse url - ensure a protocol is specified')
@@ -109,6 +111,16 @@ def main():
     correlate.reset()
 
     requestobject = getpage_main(args.target, usetor=torstate)
+    if requestobject is None and protocol_assumed and args.target.startswith('http://'):
+        # the assumed http:// (port 80) was refused; many services (incl. onions)
+        # only serve https, so retry over https before giving up
+        https_target = 'https://' + args.target[len('http://'):]
+        logging.warning('http retrieval failed, retrying over https: %s', https_target)
+        retry = getpage_main(https_target, usetor=torstate)
+        if retry is not None:
+            args.target = https_target
+            url_base = getbaseurl(args.target)
+            requestobject = retry
     if requestobject is None:
         logging.error('failed to retrieve page')
         sys.exit(1)
