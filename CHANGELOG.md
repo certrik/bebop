@@ -37,9 +37,13 @@ the onion baseline.
   Extracted IPs/hostnames are registered as correlation candidates and leaked
   public IPs are confirmed directly against the onion baseline — turning the
   passive path scan into an active deanonymisation pivot. The check list is
-  comprehensive (360+ paths) and supports non-GET vectors: GraphQL/Hasura
-  introspection, Elasticsearch `_search`/`_sql`, and WordPress XML-RPC method
-  enumeration (pingback SSRF vector) all issue `POST` probes.
+  comprehensive (400+ paths) and supports non-GET vectors: GraphQL/Hasura
+  introspection, Elasticsearch `_search`/`_sql`/`_analyze`, JSON-RPC node probes
+  (`web3_clientVersion`), and WordPress XML-RPC method enumeration (pingback
+  SSRF vector) all issue `POST` probes. Coverage includes orchestration/daemon
+  APIs (Docker, Kubernetes, Consul, etcd), the full Spring Actuator and Go
+  pprof surfaces, shell/tool history and deploy/editor credential files, and
+  attribution artefacts (`.gitconfig`, `CODEOWNERS`).
 - **Correlation & confirmation layer** (`app/correlate.py`): fuses
   selector→candidate edges from every engine, ranks candidate origins by the
   number of *independent* selector categories pointing at them, then confirms

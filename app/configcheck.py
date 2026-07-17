@@ -496,6 +496,87 @@ interesting_paths = [
     {'uri': '/beta/', 'code': 200, 'text': None, 'desc': 'Beta directory'},
     {'uri': '/demo/', 'code': 200, 'text': None, 'desc': 'Demo directory'},
     {'uri': '/.well-known/', 'code': 200, 'text': None, 'desc': 'well-known directory'},
+
+    # ------------------------------------------------------------------ #
+    # orchestration / daemon APIs exposed over HTTP (leak topology & IPs) #
+    # ------------------------------------------------------------------ #
+    {'uri': '/info', 'code': 200, 'text': 'Containers', 'desc': 'Docker Engine API (info)'},
+    {'uri': '/containers/json', 'code': 200, 'text': None, 'desc': 'Docker Engine API (running containers)'},
+    {'uri': '/images/json', 'code': 200, 'text': None, 'desc': 'Docker Engine API (images)'},
+    {'uri': '/api', 'code': 200, 'text': 'versions', 'desc': 'Kubernetes API server'},
+    {'uri': '/apis', 'code': 200, 'text': 'groups', 'desc': 'Kubernetes API groups'},
+    {'uri': '/v1/catalog/nodes', 'code': 200, 'text': 'Address', 'desc': 'Consul nodes (internal IPs)'},
+    {'uri': '/v1/catalog/services', 'code': 200, 'text': None, 'desc': 'Consul services'},
+    {'uri': '/v1/kv/?recurse=true', 'code': 200, 'text': None, 'desc': 'Consul KV (secrets)'},
+    {'uri': '/v2/keys/?recursive=true', 'code': 200, 'text': 'nodes', 'desc': 'etcd keys (v2)'},
+
+    # more Spring Actuator surface
+    {'uri': '/actuator/metrics', 'code': 200, 'text': 'names', 'desc': 'Spring Actuator metrics'},
+    {'uri': '/actuator/scheduledtasks', 'code': 200, 'text': None, 'desc': 'Spring Actuator scheduled tasks'},
+    {'uri': '/actuator/caches', 'code': 200, 'text': None, 'desc': 'Spring Actuator caches'},
+    {'uri': '/actuator/sessions', 'code': 200, 'text': None, 'desc': 'Spring Actuator sessions'},
+
+    # more Go pprof - cmdline leaks flags (often incl. bind/advertise addresses)
+    {'uri': '/debug/pprof/cmdline', 'code': 200, 'text': None, 'desc': 'Go pprof cmdline (flags & bind addrs)'},
+    {'uri': '/debug/pprof/goroutine?debug=1', 'code': 200, 'text': 'goroutine', 'desc': 'Go pprof goroutine stacks'},
+
+    # CI/build & script consoles
+    {'uri': '/api/json', 'code': 200, 'text': 'jobs', 'desc': 'Jenkins API (jobs)'},
+    {'uri': '/script', 'code': 200, 'text': 'Groovy', 'desc': 'Jenkins script console'},
+
+    # ------------------------------------------------------------------ #
+    # more POST vectors (introspection / RPC / analysis)                  #
+    # ------------------------------------------------------------------ #
+    {'uri': '/gql', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (schema disclosure)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
+    {'uri': '/api/v1/graphql', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (schema disclosure)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
+    {'uri': '/rpc', 'code': 200, 'text': 'jsonrpc', 'desc': 'JSON-RPC endpoint',
+     'method': 'POST', 'json': {'jsonrpc': '2.0', 'method': 'web3_clientVersion', 'id': 1}},
+    {'uri': '/', 'code': 200, 'text': 'jsonrpc', 'desc': 'JSON-RPC node at web root (client version)',
+     'method': 'POST', 'json': {'jsonrpc': '2.0', 'method': 'web3_clientVersion', 'id': 1}},
+    {'uri': '/_analyze', 'code': 200, 'text': 'tokens', 'desc': 'Elasticsearch analyze',
+     'method': 'POST', 'json': {'text': 'bebop'}},
+
+    # ------------------------------------------------------------------ #
+    # shell / tool history & client configs (creds, internal hostnames)   #
+    # ------------------------------------------------------------------ #
+    {'uri': '/.bash_history', 'code': 200, 'text': None, 'desc': 'Bash history (commands, creds)'},
+    {'uri': '/.zsh_history', 'code': 200, 'text': None, 'desc': 'Zsh history'},
+    {'uri': '/.python_history', 'code': 200, 'text': None, 'desc': 'Python REPL history'},
+    {'uri': '/.mysql_history', 'code': 200, 'text': None, 'desc': 'MySQL client history'},
+    {'uri': '/.psql_history', 'code': 200, 'text': None, 'desc': 'psql history'},
+    {'uri': '/.rediscli_history', 'code': 200, 'text': None, 'desc': 'redis-cli history'},
+    {'uri': '/.viminfo', 'code': 200, 'text': None, 'desc': 'vim info (recent files/paths)'},
+    {'uri': '/.ssh/config', 'code': 200, 'text': None, 'desc': 'SSH client config (internal hosts)'},
+    {'uri': '/.s3cfg', 'code': 200, 'text': None, 'desc': 's3cmd config (AWS keys)'},
+    {'uri': '/.boto', 'code': 200, 'text': None, 'desc': 'boto config (cloud keys)'},
+
+    # ------------------------------------------------------------------ #
+    # deploy/editor configs & keys (host + credentials, attribution)      #
+    # ------------------------------------------------------------------ #
+    {'uri': '/.gitconfig', 'code': 200, 'text': None, 'desc': 'Global git config (user name/e-mail)'},
+    {'uri': '/.git-credentials', 'code': 200, 'text': None, 'desc': 'Git credentials (plaintext)'},
+    {'uri': '/sftp-config.json', 'code': 200, 'text': None, 'desc': 'Sublime SFTP config (host & creds)'},
+    {'uri': '/.vscode/sftp.json', 'code': 200, 'text': None, 'desc': 'VS Code SFTP config (host & creds)'},
+    {'uri': '/deployment-config.json', 'code': 200, 'text': None, 'desc': 'Editor deploy config (host & creds)'},
+    {'uri': '/.ftpconfig', 'code': 200, 'text': None, 'desc': 'FTP config (host & creds)'},
+    {'uri': '/WS_FTP.LOG', 'code': 200, 'text': None, 'desc': 'WS_FTP log (upload hosts & paths)'},
+    {'uri': '/storage/oauth-private.key', 'code': 200, 'text': None, 'desc': 'Laravel Passport private key'},
+    {'uri': '/oauth-private.key', 'code': 200, 'text': None, 'desc': 'OAuth private key'},
+    {'uri': '/privkey.pem', 'code': 200, 'text': None, 'desc': 'TLS private key'},
+    {'uri': '/server.key', 'code': 200, 'text': None, 'desc': 'TLS private key'},
+    {'uri': '/service-account.json', 'code': 200, 'text': None, 'desc': 'GCP service account key'},
+    {'uri': '/.firebaserc', 'code': 200, 'text': None, 'desc': 'Firebase project config'},
+    {'uri': '/CODEOWNERS', 'code': 200, 'text': None, 'desc': 'CODEOWNERS (maintainer handles)'},
+    {'uri': '/.github/CODEOWNERS', 'code': 200, 'text': None, 'desc': 'CODEOWNERS (maintainer handles)'},
+
+    # ------------------------------------------------------------------ #
+    # more discovery / OAuth well-knowns                                  #
+    # ------------------------------------------------------------------ #
+    {'uri': '/.well-known/oauth-authorization-server', 'code': 200, 'text': 'issuer', 'desc': 'OAuth AS metadata (issuer host)'},
+    {'uri': '/sitemap_index.xml', 'code': 200, 'text': None, 'desc': 'Sitemap index'},
+    {'uri': '/wp-links-opml.php', 'code': 200, 'text': 'opml', 'desc': 'WordPress OPML (blogroll)'},
 ]
 
 # --- origin-indicator extraction --------------------------------------- #
