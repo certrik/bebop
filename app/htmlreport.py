@@ -310,12 +310,17 @@ def _generate_discovered_paths_section(data):
         status_code = path.get('status_code', 'Unknown')
         badge_class = 'badge-success' if status_code == 200 else 'badge-warning' if status_code in [301, 302, 403] else 'badge-danger'
 
+        indicators = path.get('indicators') or {}
+        leaked = (indicators.get('public_ips', []) or []) + (indicators.get('hostnames', []) or [])
+        leaked_cell = escape(', '.join(leaked)) if leaked else '-'
+
         rows += f"""
         <tr>
             <td><code>{escape(path.get('path', 'N/A'))}</code></td>
             <td><span class="badge {badge_class}">{escape(str(status_code))}</span></td>
             <td>{escape(path.get('description', 'N/A'))}</td>
             <td>{escape(path.get('matched_text', 'N/A') if path.get('matched_text') else '-')}</td>
+            <td>{leaked_cell}</td>
         </tr>
         """
 
@@ -330,6 +335,7 @@ def _generate_discovered_paths_section(data):
                         <th>Status</th>
                         <th>Description</th>
                         <th>Matched Content</th>
+                        <th>Origin Indicators</th>
                     </tr>
                 </thead>
                 <tbody>

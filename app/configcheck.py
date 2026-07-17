@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import re
 import uuid
 import logging
 import asyncio
+import ipaddress
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp_socks import ProxyConnector
 
@@ -315,6 +317,11 @@ interesting_paths = [
     {'uri': '/?rest_route=/wp/v2/users', 'code': 200, 'text': 'slug', 'desc': 'WordPress user enumeration'},
     {'uri': '/wp-cron.php', 'code': 200, 'text': None, 'desc': 'WordPress cron'},
     {'uri': '/xmlrpc.php', 'code': 405, 'text': 'XML-RPC server accepts POST requests only', 'desc': 'WordPress XML-RPC'},
+    # Enumerate XML-RPC methods (read-only). A pingback.ping in the list is the
+    # classic WordPress out-of-band deanon vector - flag its availability.
+    {'uri': '/xmlrpc.php', 'code': 200, 'text': 'pingback.ping', 'desc': 'WordPress XML-RPC methods (pingback SSRF vector)',
+     'method': 'POST', 'headers': {'Content-Type': 'text/xml'},
+     'data': '<?xml version="1.0"?><methodCall><methodName>system.listMethods</methodName><params></params></methodCall>'},
     {'uri': '/readme.html', 'code': 200, 'text': 'WordPress', 'desc': 'WordPress readme (version)'},
     {'uri': '/license.txt', 'code': 200, 'text': 'WordPress', 'desc': 'WordPress license (version)'},
     {'uri': '/joomla', 'code': 200, 'text': 'Joomla', 'desc': 'Joomla'},
@@ -347,7 +354,16 @@ interesting_paths = [
     {'uri': '/v3/api-docs', 'code': 200, 'text': 'openapi', 'desc': 'OpenAPI 3 API docs'},
     {'uri': '/api-docs', 'code': 200, 'text': None, 'desc': 'API docs'},
     {'uri': '/redoc', 'code': 200, 'text': 'ReDoc', 'desc': 'ReDoc API docs'},
-    {'uri': '/graphql', 'code': 200, 'text': None, 'desc': 'GraphQL endpoint'},
+    # POST an introspection query - a permissive endpoint returns its full
+    # schema (internal types, fields, backend mutations).
+    {'uri': '/graphql', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (schema disclosure)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
+    {'uri': '/api/graphql', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (schema disclosure)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
+    {'uri': '/v1/graphql', 'code': 200, 'text': '__schema', 'desc': 'Hasura GraphQL introspection',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
+    {'uri': '/query', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (schema disclosure)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
     {'uri': '/graphiql', 'code': 200, 'text': 'GraphiQL', 'desc': 'GraphiQL console'},
     {'uri': '/playground', 'code': 200, 'text': 'playground', 'desc': 'GraphQL Playground'},
     {'uri': '/?wsdl', 'code': 200, 'text': 'definitions', 'desc': 'SOAP WSDL'},
@@ -359,6 +375,10 @@ interesting_paths = [
     {'uri': '/_cluster/health', 'code': 200, 'text': 'cluster_name', 'desc': 'Elasticsearch cluster health'},
     {'uri': '/_nodes', 'code': 200, 'text': None, 'desc': 'Elasticsearch nodes (internal IPs)'},
     {'uri': '/_search', 'code': 200, 'text': 'hits', 'desc': 'Elasticsearch search'},
+    {'uri': '/_search', 'code': 200, 'text': 'hits', 'desc': 'Elasticsearch search (match_all)',
+     'method': 'POST', 'json': {'query': {'match_all': {}}, 'size': 1}},
+    {'uri': '/_sql', 'code': 200, 'text': 'columns', 'desc': 'Elasticsearch SQL',
+     'method': 'POST', 'json': {'query': 'SHOW TABLES'}},
     {'uri': '/solr/', 'code': 200, 'text': 'Solr', 'desc': 'Apache Solr'},
     {'uri': '/solr/admin/cores', 'code': 200, 'text': None, 'desc': 'Apache Solr cores'},
     {'uri': '/kibana', 'code': 200, 'text': 'Kibana', 'desc': 'Kibana'},
@@ -478,11 +498,112 @@ interesting_paths = [
     {'uri': '/.well-known/', 'code': 200, 'text': None, 'desc': 'well-known directory'},
 ]
 
+# --- origin-indicator extraction --------------------------------------- #
+# A matched leak often prints the origin's real addressing in its body. We mine
+# it here so the caller can feed it straight into the correlation/confirmation
+# pipeline (a leaked SERVER_ADDR / instance= label is a candidate origin IP).
+
+_IPV4_RE = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+_IPV6_RE = re.compile(r'\b(?:[A-Fa-f0-9]{1,4}:){3,7}[A-Fa-f0-9]{1,4}\b')
+# hosts embedded in URLs / connection strings (jdbc:, redis://, mongodb://, ...)
+_HOST_IN_URL_RE = re.compile(
+    r'(?i)\b(?:https?|ftp|jdbc:[a-z0-9]+|redis|rediss|mongodb(?:\+srv)?|amqps?|'
+    r'postgres(?:ql)?|mysql|mssql|memcached)://(?:[^:@/\s"\'<>]+(?::[^@/\s"\'<>]*)?@)?'
+    r'([A-Za-z0-9._-]+\.[A-Za-z0-9._-]+)')
+# HOST-ish assignments in env / phpinfo / config bodies
+_ASSIGN_HOST_RE = re.compile(
+    r'(?i)(?:DB_HOST|DATABASE_HOST|REDIS_HOST|MAIL_HOST|SMTP_HOST|MYSQL_HOST|'
+    r'PG_?HOST|SERVER_ADDR|SERVER_NAME|HOSTNAME|X-Forwarded-For|X-Real-IP)'
+    r'["\']?\s*(?:=>|[:=])\s*["\']?\s*([A-Za-z0-9._:-]+)')
+# Prometheus/Consul style: instance="1.2.3.4:9100"  "Address":"10.0.0.5"
+_LABELLED_ADDR_RE = re.compile(
+    r'(?i)(?:instance|address|advertise_addr|advertiseaddr|node_?ip|bind_?addr)'
+    r'["\']?\s*[:=]\s*["\']?([0-9A-Fa-f.:]+)')
+
+# third-party hosts that are never the origin - don't treat as candidates
+_HOST_NOISE = (
+    'w3.org', 'schema.org', 'googleapis.com', 'gstatic.com', 'google.com',
+    'jquery.com', 'jsdelivr.net', 'cloudflare.com', 'bootstrapcdn.com',
+    'fontawesome.com', 'gravatar.com', 'wordpress.org', 'example.com',
+    'example.org', 'localhost', 'githubusercontent.com', 'github.com',
+    'unpkg.com', 'polyfill.io', 'sentry.io', 'gmpg.org', 'purl.org',
+)
+
+
+def _keep_ip(token):
+    '''Return ('public'|'private'|None) for a parsed IP token.'''
+    try:
+        ip = ipaddress.ip_address(token)
+    except ValueError:
+        return None
+    if ip.is_loopback or ip.is_unspecified or ip.is_link_local or ip.is_multicast:
+        return None
+    if ip.is_global:
+        return 'public'
+    if ip.is_private:
+        return 'private'
+    return None
+
+
+def _clean_host(h):
+    h = (h or '').strip().strip('.').lower()
+    # drop a trailing :port if present
+    if h.count(':') == 1 and not h.replace(':', '').isalpha():
+        h = h.split(':', 1)[0]
+    if not h or '.' not in h or h.endswith('.onion'):
+        return None
+    try:                                   # pure IPs handled elsewhere
+        ipaddress.ip_address(h)
+        return None
+    except ValueError:
+        pass
+    if not re.match(r'^[a-z0-9.-]+$', h) or h.startswith('-'):
+        return None
+    if any(h == n or h.endswith('.' + n) for n in _HOST_NOISE):
+        return None
+    # require a plausible TLD (2+ alpha) to cut file names like config.php
+    if not re.search(r'\.[a-z]{2,}$', h):
+        return None
+    return h
+
+
+def extract_origin_indicators(text, limit=200000):
+    '''Mine a matched response body for the origin's real addressing.'''
+    out = {'public_ips': [], 'private_ips': [], 'hostnames': []}
+    if not text:
+        return out
+    sample = text[:limit]
+    pub, priv, hosts = set(), set(), set()
+    for token in _IPV4_RE.findall(sample) + _IPV6_RE.findall(sample):
+        kind = _keep_ip(token)
+        if kind == 'public':
+            pub.add(token)
+        elif kind == 'private':
+            priv.add(token)
+    for rx in (_LABELLED_ADDR_RE,):
+        for token in rx.findall(sample):
+            kind = _keep_ip(token.split(':')[0] if token.count(':') == 1 else token)
+            if kind == 'public':
+                pub.add(token.split(':')[0] if token.count(':') == 1 else token)
+    for rx in (_HOST_IN_URL_RE, _ASSIGN_HOST_RE):
+        for token in rx.findall(sample):
+            h = _clean_host(token)
+            if h:
+                hosts.add(h)
+    out['public_ips'] = sorted(pub)[:20]
+    out['private_ips'] = sorted(priv)[:20]
+    out['hostnames'] = sorted(hosts)[:20]
+    return out
+
+
 async def fetch(location, path, session, results_list):
     uri = location + path['uri']
-    log.debug('scanning %s - expecting %s', uri, path['code'])
+    method = path.get('method', 'GET')
+    log.debug('scanning %s (%s) - expecting %s', uri, method, path['code'])
     try:
-        async with session.get(uri, ssl=False) as response:
+        async with session.request(method, uri, ssl=False,
+                                   json=path.get('json'), data=path.get('data'),
+                                   headers=path.get('headers')) as response:
             text = await response.text()
             matched = False
             matched_text = None
@@ -502,12 +623,19 @@ async def fetch(location, path, session, results_list):
 
             # Store result for reporting
             if matched:
+                indicators = extract_origin_indicators(text)
+                if indicators['public_ips'] or indicators['hostnames']:
+                    log.warning('config leak at %s exposes origin indicators: %s',
+                                path['uri'],
+                                indicators['public_ips'] + indicators['hostnames'])
                 result = {
                     'path': path['uri'],
+                    'method': method,
                     'status_code': response.status,
                     'expected_code': path['code'],
                     'description': path.get('desc', 'Discovered Path'),
-                    'matched_text': matched_text
+                    'matched_text': matched_text,
+                    'indicators': indicators,
                 }
                 results_list.append(result)
 
