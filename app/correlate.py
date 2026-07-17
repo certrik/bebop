@@ -19,6 +19,7 @@ independent hits.
 '''
 import logging
 import hashlib
+import ipaddress
 import mmh3
 
 log = logging.getLogger(__name__)
@@ -191,10 +192,73 @@ def correlate_and_confirm(baseline, fetch_fn, top_n=10):
                     candidate, cats, ','.join(sorted(entry['categories'])),
                     ','.join(sorted(entry['sources'])), conf['verdict'])
 
-    results.sort(key=lambda r: (_VERDICT_ORDER.get(r['confirmation']['verdict'], 9),
-                                -r['category_count']))
+    results = rank_results(results)
     confirmed = [r for r in results if r['confirmation']['verdict'] == 'CONFIRMED']
     if confirmed:
         log.warning('correlate: %s candidate(s) CONFIRMED as clearnet origin: %s',
                     len(confirmed), ', '.join(r['candidate'] for r in confirmed))
     return results
+
+
+def rank_results(results):
+    '''Order candidate records by verdict, then by corroboration strength.'''
+    return sorted(results, key=lambda r: (_VERDICT_ORDER.get(r['confirmation']['verdict'], 9),
+                                          -r.get('category_count', 0)))
+
+
+def _is_ip(value):
+    try:
+        ipaddress.ip_address(str(value))
+        return True
+    except ValueError:
+        return False
+
+
+def reverse_resolve_and_confirm(results, resolver, baseline, fetch_fn,
+                                max_ips=5, max_domains=20):
+    '''
+    Second-order enrichment: for the strongest candidate *IPs*, reverse-resolve
+    the domains associated with them (urlscan / VirusTotal / SecurityTrails /
+    Validin, via `resolver`), register those domains as new candidates, and
+    confirm each against the onion baseline.
+
+    `results` is the ranked list from correlate_and_confirm (IPs first-ish).
+    Returns (reverse_map {ip: [domains]}, new_records [confirmed domain records]).
+    Bounded by max_ips and max_domains to respect the resolvers' rate limits.
+    '''
+    reverse_map = {}
+    new_records = []
+    ip_count = 0
+    domain_budget = max_domains
+    for r in results:
+        if ip_count >= max_ips or domain_budget <= 0:
+            break
+        ip = r.get('candidate')
+        if not _is_ip(ip):
+            continue  # only reverse-resolve IP candidates
+        ip_count += 1
+        try:
+            domains = list(resolver(ip) or [])
+        except Exception as e:
+            log.warning('correlate: reverse-resolve failed for %s: %s', ip, e)
+            continue
+        if not domains:
+            continue
+        reverse_map[ip] = domains
+        log.warning('correlate: %s reverse-resolves to %s domain(s): %s',
+                    ip, len(domains), ', '.join(domains[:10]))
+        for domain in domains:
+            if domain_budget <= 0:
+                break
+            domain_budget -= 1
+            add_candidate(domain, 'finddomains', 'pdns:reverse')
+            conf = confirm_candidate(domain, baseline, fetch_fn)
+            new_records.append({
+                'candidate': domain,
+                'from_ip': ip,
+                'categories': ['pdns'],
+                'category_count': 1,
+                'sources': ['finddomains'],
+                'confirmation': conf,
+            })
+    return reverse_map, new_records
