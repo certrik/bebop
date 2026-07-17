@@ -22,6 +22,15 @@ the onion baseline.
   (resolutions plus hash/certificate/JARM pivots).
 
 #### Deanonymization techniques
+- **Config-check origin extraction**: matched misconfiguration leaks are now
+  mined for the origin's real addressing (public IPs, `SERVER_ADDR`, Prometheus
+  `instance=` labels, Consul addresses, internal hostnames in DB/URL strings).
+  Extracted IPs/hostnames are registered as correlation candidates and leaked
+  public IPs are confirmed directly against the onion baseline — turning the
+  passive path scan into an active deanonymisation pivot. The check list is
+  comprehensive (360+ paths) and supports non-GET vectors: GraphQL/Hasura
+  introspection, Elasticsearch `_search`/`_sql`, and WordPress XML-RPC method
+  enumeration (pingback SSRF vector) all issue `POST` probes.
 - **Correlation & confirmation layer** (`app/correlate.py`): fuses
   selector→candidate edges from every engine, ranks candidate origins by the
   number of *independent* selector categories pointing at them, then confirms

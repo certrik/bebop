@@ -133,6 +133,23 @@ def main():
     title_data = title_main(requestobject)
     header_data = headers_main(requestobject)
     discovered_paths = asyncio.run(configcheck_main(url_base, usetor=torstate))
+
+    # Mine any config leaks for the origin's real addressing and feed them into
+    # the correlation layer: a leaked SERVER_ADDR / instance IP is a direct
+    # origin candidate, and leaked internal hostnames become extra pivots.
+    leaked_public_ips = set()
+    leaked_hostnames = set()
+    for _p in (discovered_paths or []):
+        _ind = _p.get('indicators') or {}
+        for _ip in _ind.get('public_ips', []):
+            leaked_public_ips.add(_ip)
+            correlate.add_candidate(_ip, 'configcheck', f'configcheck:origin_leak:{_p["path"]}')
+        for _h in _ind.get('hostnames', []):
+            leaked_hostnames.add(_h)
+            correlate.add_candidate(_h, 'configcheck', f'configcheck:origin_leak:{_p["path"]}')
+    if leaked_public_ips or leaked_hostnames:
+        logging.warning('config checks leaked origin indicators - IPs: %s hostnames: %s',
+                        sorted(leaked_public_ips), sorted(leaked_hostnames))
     favicon_data = favicon_main(url_base, requestobject, usetor=torstate)
     pagespider_data = pagespider_main(requestobject, usetor=torstate, skip_queryurl=True)
     cryptocurrency_data = cryptocurrency_main(requestobject.text)
@@ -201,6 +218,21 @@ def main():
         logging.error('correlation/confirmation failed (%s)', e)
         deanon_candidates = []
 
+    # High-trust shortcut: directly confirm origin IPs leaked by config checks by
+    # fetching each over clearnet and diffing against the onion baseline. A
+    # byte-identical body served on the leaked IP is a near-certain deanon.
+    origin_leaks = []
+    for _ip in sorted(leaked_public_ips):
+        try:
+            verdict = correlate.confirm_candidate(
+                _ip, baseline, fetch_fn=lambda u: getpage_main(u, usetor=False))
+            origin_leaks.append(verdict)
+            if verdict.get('verdict') in ('CONFIRMED', 'LIKELY'):
+                logging.warning('origin IP leaked via config check: %s => %s (%s)',
+                                _ip, verdict['verdict'], verdict.get('url'))
+        except Exception as e:
+            logging.debug('origin-leak confirmation failed for %s: %s', _ip, e)
+
     # Calculate scan duration
     end_time = time.time()
     duration = end_time - start_time
@@ -229,6 +261,7 @@ def main():
                     'use_tor': torstate
                 },
                 'discovered_paths': discovered_paths or [],
+                'origin_leaks': origin_leaks,
                 'headers': header_data,
                 'all_headers': dict(requestobject.headers),  # Pass all raw headers
                 'title': title_data,

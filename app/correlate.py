@@ -38,6 +38,7 @@ _CATEGORY_RULES = [
     ('hostname', ('hostname', 'dns.names', 'fqdns', 'dns_names')),
     ('header', ('etag', 'header.server', 'headers.server', 'header.etag')),
     ('pdns', ('pdns', 'resolution')),
+    ('origin_leak', ('configcheck', 'origin_leak', 'server_addr')),
 ]
 
 _candidates = {}
