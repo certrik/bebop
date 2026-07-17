@@ -57,15 +57,18 @@ class TestUtilities(unittest.TestCase):
         for url in invalid_urls:
             self.assertFalse(utilities.validurl(url), f"URL should be invalid: {url}")
 
+    # clear SOCKS_HOST/PORT so the resolution-based defaults are exercised
+    # (an explicit SOCKS_HOST env always wins and would mask the logic here)
+    @patch.dict('os.environ', {}, clear=True)
     @patch('app.utilities.nsresolve')
     def test_getproxyvalue(self, mock_nsresolve):
-        # Test with docker.internal
+        # Test with docker.internal resolvable -> host.docker.internal default
         mock_nsresolve.return_value = '172.17.0.1'
         addr, port = utilities.getproxyvalue()
         self.assertEqual(addr, 'host.docker.internal')
         self.assertEqual(port, 9050)
 
-        # Test without docker.internal
+        # Test without docker.internal -> 127.0.0.1 default
         mock_nsresolve.return_value = None
         addr, port = utilities.getproxyvalue()
         self.assertEqual(addr, '127.0.0.1')
@@ -127,7 +130,8 @@ class TestUtilities(unittest.TestCase):
         result = utilities.getbaseurl('https://example.com:8080/path')
         self.assertEqual(result, 'https://example.com:8080')
 
-    def test_getsocks(self):
+    @patch('app.utilities.checktcp', return_value=True)
+    def test_getsocks(self, _mock_checktcp):
         # Test with aio_fmt=False
         result = utilities.getsocks(aio_fmt=False)
         expected = {

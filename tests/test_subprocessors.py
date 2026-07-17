@@ -128,6 +128,10 @@ class TestSubprocessors(unittest.TestCase):
         results = subprocessors.query_censys('host.dns.names="example.com"')
         self.assertEqual(len(results), 0)
 
+    # API keys are bound to module globals at import time, so patch those
+    # directly (setUp's env is too late to affect them).
+    @patch('app.subprocessors.FOFA_API_MAIL', 'test@example.com')
+    @patch('app.subprocessors.FOFA_API_KEY', 'test_fofa_key')
     @patch('requests.get')
     def test_query_fofa(self, mock_get):
         # Test successful query
@@ -136,15 +140,16 @@ class TestSubprocessors(unittest.TestCase):
         mock_response.json.return_value = {
             'size': 2,
             'results': [
-                ['1.1.1.1', 'test.com'],
-                ['2.2.2.2', 'example.com']
+                ['1.1.1.1', '80', 'test.com'],
+                ['2.2.2.2', '443', 'example.com']
             ]
         }
         mock_get.return_value = mock_response
 
         results = subprocessors.query_fofa('test query')
         self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]['ip'], '1.1.1.1')
+        # fofa returns rows as [ip, port, banner] lists
+        self.assertEqual(results[0][0], '1.1.1.1')
 
         # Test query with too many results
         mock_response.json.return_value = {'size': 21, 'results': []}
@@ -156,15 +161,15 @@ class TestSubprocessors(unittest.TestCase):
         results = subprocessors.query_fofa('test query')
         self.assertEqual(len(results), 0)
 
+    @patch('app.subprocessors.SECURITYTRAILS_API_KEY', 'test_securitytrails_key')
     @patch('requests.get')
     def test_query_resolutions_securitytrails(self, mock_get):
         # Test successful query
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            'records': [
-                {'hostname': 'test.com'},
-                {'hostname': 'example.com'}
+            'blocks': [
+                {'ip': '1.1.1.2', 'hostnames': ['test.com', 'example.com']}
             ]
         }
         mock_get.return_value = mock_response
@@ -178,20 +183,17 @@ class TestSubprocessors(unittest.TestCase):
         results = subprocessors.query_resolutions_securitytrails('1.1.1.1')
         self.assertEqual(len(results), 0)
 
+    @patch('app.subprocessors.VIRUSTOTAL_API_KEY', 'test_virustotal_key')
     @patch('requests.get')
     def test_query_resolutions_virustotal(self, mock_get):
         # Test successful query
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            'data': {
-                'attributes': {
-                    'resolutions': [
-                        {'hostname': 'test.com'},
-                        {'hostname': 'example.com'}
-                    ]
-                }
-            }
+            'data': [
+                {'attributes': {'host_name': 'test.com'}},
+                {'attributes': {'host_name': 'example.com'}}
+            ]
         }
         mock_get.return_value = mock_response
 
@@ -204,6 +206,7 @@ class TestSubprocessors(unittest.TestCase):
         results = subprocessors.query_resolutions_virustotal('1.1.1.1')
         self.assertEqual(len(results), 0)
 
+    @patch('app.subprocessors.URLSCAN_API_KEY', 'test_urlscan_key')
     @patch('requests.get')
     def test_query_resolutions_urlscan(self, mock_get):
         # Test successful query
@@ -211,8 +214,8 @@ class TestSubprocessors(unittest.TestCase):
         mock_response.status_code = 200
         mock_response.json.return_value = {
             'results': [
-                {'page': {'domain': 'test.com'}},
-                {'page': {'domain': 'example.com'}}
+                {'task': {'domain': 'test.com'}},
+                {'task': {'domain': 'example.com'}}
             ]
         }
         mock_get.return_value = mock_response

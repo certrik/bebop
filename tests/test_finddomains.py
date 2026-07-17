@@ -3,19 +3,24 @@ from unittest.mock import patch, MagicMock
 from app.finddomains import main, reverse_dns_lookup, check_hostname_resolvematch
 
 class TestFindDomains(unittest.TestCase):
+    # finddomains imports these names directly, so patch them on the
+    # finddomains module (not via a non-existent `subprocessors` attribute).
     @patch('app.finddomains.reverse_dns_lookup')
-    @patch('app.finddomains.subprocessors.query_resolutions_virustotal')
-    @patch('app.finddomains.subprocessors.query_resolutions_urlscan')
-    @patch('app.finddomains.subprocessors.query_resolutions_securitytrails')
+    @patch('app.finddomains.query_resolutions_validin')
+    @patch('app.finddomains.query_resolutions_virustotal')
+    @patch('app.finddomains.query_resolutions_urlscan')
+    @patch('app.finddomains.query_resolutions_securitytrails')
     @patch('app.finddomains.check_hostname_resolvematch')
-    def test_main_function(self, mock_check_resolve, mock_securitytrails, mock_urlscan, mock_virustotal, mock_reverse_dns):
+    def test_main_function(self, mock_check_resolve, mock_securitytrails, mock_urlscan,
+                           mock_virustotal, mock_validin, mock_reverse_dns):
         # Setup mocks
         mock_reverse_dns.return_value = "example.com"
         mock_virustotal.return_value = {"domain1.com", "domain2.com"}
         mock_urlscan.return_value = {"domain2.com", "domain3.com"}
         mock_securitytrails.return_value = {"domain3.com", "domain4.com"}
+        mock_validin.return_value = set()
         mock_check_resolve.return_value = ["domain1.com", "domain2.com"]
-        
+
         # Call the function
         result = main("192.168.1.1")
         
