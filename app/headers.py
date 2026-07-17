@@ -213,8 +213,9 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
         etag = requestobject.headers['etag']
         if doshodan:
             query_shodan(f'http.headers.etag:"{etag}"')
-        # Censys omitted: the Platform has no verified CenQL field for an
-        # individual HTTP response header value (the key/value form returns 422).
+        if docensys:
+            # Platform v3: HTTP headers live on the web dataset as key/value pairs.
+            query_censys(f'web.endpoints.http.headers: (key="etag" and value="{etag}")')
         if dozoome:
             query_zoomeye(f'header.etag:"{etag}"')
         if dofofa:
@@ -225,7 +226,8 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
         server = requestobject.headers['server']
         if doshodan:
             query_shodan(f'http.headers.server:"{server}"')
-        # Censys omitted (see etag note above); a Server value is low-signal anyway.
+        if docensys:
+            query_censys(f'web.endpoints.http.headers: (key="server" and value="{server}")')
         if dozoome:
             query_zoomeye(f'header.server:"{server}"')
         if dofofa:
