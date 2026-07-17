@@ -174,5 +174,5 @@ def preflight():
             sys.exit(1)
     for file in file_checks:
         if not os.path.isfile(file):
-            log.critical('%f not found', file)
+            log.critical('%s not found', file)
             sys.exit(1)

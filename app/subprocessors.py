@@ -282,7 +282,11 @@ def query_resolutions_securitytrails(ip_address):
         return set()
     url = f"https://api.securitytrails.com/v1/ips/nearby/{ip_address}"
     headers = {"apikey": SECURITYTRAILS_API_KEY}
-    response = requests.get(url, headers=headers, timeout=10)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as e:
+        log.warning("securitytrails: request failed: %s", e)
+        return set()
     if response.status_code != 200:
         logging.error(f"unhandled error: {response.status_code} - {response.text}")
         return set()
@@ -300,7 +304,11 @@ def query_resolutions_virustotal(ip_address):
         return set()
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip_address}/resolutions"
     headers = {"x-apikey": VIRUSTOTAL_API_KEY}
-    response = requests.get(url, headers=headers, timeout=10)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as e:
+        log.warning("virustotal: request failed: %s", e)
+        return set()
     if response.status_code != 200:
         logging.error(f"unhandled error: {response.status_code} - {response.text}")
         return set()
@@ -321,7 +329,11 @@ def query_resolutions_urlscan(ip_address):
         'API-Key': URLSCAN_API_KEY,
         'Content-Type': 'application/json'
     }
-    response = requests.get(search_url, headers=headers, timeout=10)
+    try:
+        response = requests.get(search_url, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as e:
+        log.warning("urlscan: request failed: %s", e)
+        return set()
     if response.status_code != 200:
         logging.error(f"unhandled error: {response.status_code} - {response.text}")
         return set()

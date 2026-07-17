@@ -5,7 +5,9 @@ from unittest.mock import patch, MagicMock
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app import cryptocurrency
-class TestYourScript(unittest.TestCase):
+
+
+class TestWalletExtraction(unittest.TestCase):
 
     def setUp(self):
         self.dummy_html = """<!DOCTYPE html>
@@ -28,37 +30,46 @@ class TestYourScript(unittest.TestCase):
         </html>
         """
 
-def test_extract_wallet_addresses(self):
-    expected_btc_addresses = ['1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX', '34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo', 
-                              'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97', 
-                              'bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6']
-    expected_eth_addresses = ['0x00000000219ab540356cbb839cbe05303d7705fa']
-    result = your_script.main(self.dummy_html)
-    self.assertListEqual(result['btc'], expected_btc_addresses)
-    self.assertListEqual(result['eth'], expected_eth_addresses)
+    # patch getwallet_data so main() doesn't hit blockcypher during extraction
+    @patch('app.cryptocurrency.getwallet_data')
+    def test_extract_wallet_addresses(self, _mock_balance):
+        expected_btc = {
+            '1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX',
+            '34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo',
+            'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97',
+            'bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6',
+        }
+        expected_eth = {'0x00000000219ab540356cbb839cbe05303d7705fa'}
+        result = cryptocurrency.main(self.dummy_html)
+        self.assertEqual(set(result['btc']), expected_btc)
+        self.assertEqual(set(result['eth']), expected_eth)
 
-@patch('your_script.getpage.main')
-def test_getwallet_data(self, mock_getpage):
-    mock_getpage.return_value = MagicMock(status_code=200, json=lambda: {'final_balance': 1000})
-    result = your_script.getwallet_data('1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX')
-    self.assertIsNotNone(result)
-    self.assertEqual(result['final_balance'], 1000)
-    mock_getpage.return_value = MagicMock(status_code=404)
-    result = your_script.getwallet_data('non_existent_wallet')
-    self.assertIsNone(result)
+    @patch('app.cryptocurrency.requests.get')
+    def test_getwallet_data(self, mock_get):
+        mock_get.return_value = MagicMock(status_code=200,
+                                          json=lambda: {'final_balance': 1000})
+        result = cryptocurrency.getwallet_data('1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX')
+        self.assertIsNotNone(result)
+        self.assertEqual(result['final_balance'], 1000)
 
-@patch('your_script.requests.get')
-def test_walletexplorer_inspect_and_pivot(self, mock_get):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.text = "Mocked HTML response with wallet info"
-    mock_get.return_value = mock_response
-    wallet_id, addresses = your_script.walletexplorer_inspect_and_pivot('1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX')
-    self.assertNotEqual(wallet_id, "")
-    self.assertIsInstance(addresses, list)
+        mock_get.return_value = MagicMock(status_code=404)
+        self.assertIsNone(cryptocurrency.getwallet_data('non_existent_wallet'))
 
-if __name__ == '__main__':
-    unittest.main()
+    @patch('app.cryptocurrency.requests.get')
+    def test_walletexplorer_inspect_and_pivot(self, mock_get):
+        addr = '1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX'
+        page1 = MagicMock(status_code=200,
+                          text='<div class="walletnote"><a href="/wallet/W1">w</a></div>')
+        page2 = MagicMock(status_code=200, text=(
+            '<table><tr><th>addr</th></tr>'
+            '<tr><td><a href="/address/AAA">AAA</a></td></tr>'
+            f'<tr><td><a href="/address/{addr}">self</a></td></tr></table>'))
+        mock_get.side_effect = [page1, page2]
+
+        wallet_id, addresses = cryptocurrency.walletexplorer_inspect_and_pivot(addr)
+        self.assertEqual(wallet_id[2], 'W1')
+        self.assertIn('AAA', addresses)          # pivot address kept
+        self.assertNotIn(addr, addresses)        # the queried address itself dropped
 
 
 class TestBtcValidation(unittest.TestCase):
