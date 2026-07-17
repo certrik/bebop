@@ -72,6 +72,8 @@ the onion baseline.
   certificate and TLS/JARM branches for https-only onions.
 
 ### Changed
+- **Port scan** now covers nmap's top 200 ports (was top 40) for broader
+  service coverage.
 - **ZoomEye** integration migrated to the v2 API.
 - **Censys** integration migrated to the Platform (v3) API, using the correct
   dataset split — `web.endpoints.http.*` for headers, title, and favicon;
