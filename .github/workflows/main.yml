@@ -18,62 +18,50 @@ on:
 jobs:
   exec:
     runs-on: ubuntu-latest
-    services:
-      torproxy:
-        image: ghcr.io/joshhighet/torsocc:latest
-        ports:
-          - 9050:9050
 
     steps:
       - name: checkout
         uses: actions/checkout@v5
-      - name: wait_circuit_built
+      - name: install_and_wait_tor
         run: |
-          # 1) wait for the SOCKS proxy port to accept connections (container up)
-          echo "Waiting for the Tor SOCKS proxy on localhost:9050..."
-          port_open=0
-          for i in $(seq 1 30); do
-            if timeout 3 bash -c '</dev/tcp/localhost/9050' 2>/dev/null; then
-              echo "SOCKS port is open"
-              port_open=1
-              break
-            fi
-            echo "port check $i/30: 9050 not open yet, waiting..."
-            sleep 2
-          done
-          if [ "$port_open" -ne 1 ]; then
-            echo "::error::Tor SOCKS proxy container never opened port 9050"
-            exit 1
-          fi
+          # Install Tor directly on the runner instead of the unpinned torsocc
+          # service container, which repeatedly opened 9050 without ever
+          # bootstrapping a circuit. Running Tor here lets us gate on its own
+          # authoritative "Bootstrapped 100%" signal and read its log on failure.
+          sudo apt-get update -qq
+          sudo apt-get install -y tor curl
+          # add a readable notice log, then (re)start Tor (default SocksPort 9050)
+          echo 'Log notice file /var/log/tor/notices.log' | sudo tee -a /etc/tor/torrc >/dev/null
+          sudo service tor restart || sudo service tor start
 
-          # 2) wait for Tor to actually route a request. Gate on example.com (a
-          # rock-solid, unthrottled target) rather than check.torproject.org,
-          # which is frequently rate-limited/unavailable and gives false negatives.
-          echo "Waiting for Tor to build a working circuit..."
+          echo "Waiting for Tor to bootstrap 100%..."
           ready=0
-          for attempt in $(seq 1 30); do
-            if curl -fsS --socks5-hostname localhost:9050 --max-time 8 -o /dev/null https://example.com; then
-              echo "Tor is routing (attempt $attempt) - ready!"
+          for i in $(seq 1 60); do
+            if sudo grep -q 'Bootstrapped 100%' /var/log/tor/notices.log 2>/dev/null; then
+              echo "Tor bootstrapped (attempt $i)"
               ready=1
               break
             fi
-            echo "Attempt $attempt/30: Tor not ready yet, waiting..."
+            # surface progress so a slow bootstrap is visible in the log
+            sudo grep -o 'Bootstrapped [0-9]*%' /var/log/tor/notices.log 2>/dev/null | tail -1 \
+              || echo "attempt $i/60: no bootstrap line yet"
             sleep 3
           done
           if [ "$ready" -ne 1 ]; then
-            echo "::error::Tor failed to build a working circuit"
-            echo "--- diagnostics ---"
-            curl -v --socks5-hostname localhost:9050 --max-time 10 https://example.com || true
+            echo "::error::Tor failed to bootstrap"
+            echo "--- tor notices ---"
+            sudo tail -n 60 /var/log/tor/notices.log 2>/dev/null || true
             exit 1
           fi
-      - name: check_proxy
-        run: |
-          # informational only - confirms exit IP and Tor status, but never fails
-          # the job (readiness was already proven above)
-          echo "Tor exit check (informational):"
-          curl -s --socks5-hostname localhost:9050 --max-time 15 https://check.torproject.org/api/ip \
-            || echo "(check.torproject.org unavailable - proceeding, Tor routing already confirmed)"
-          echo
+
+          # Secondary confirmation that a request actually routes. Informational:
+          # bootstrap 100% is the authoritative readiness signal, so a slow first
+          # circuit here should not fail the job.
+          if curl -fsS --socks5-hostname localhost:9050 --max-time 20 -o /dev/null https://example.com; then
+            echo "Tor routing confirmed via example.com"
+          else
+            echo "::warning::bootstrapped but example.com fetch was slow/failed - proceeding"
+          fi
       - name: prepare
         run: |
           pip3 install -e .

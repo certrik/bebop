@@ -94,8 +94,11 @@ the onion baseline.
   bech32/bech32m checksums before triggering blockchain lookups, eliminating
   false-positive wallet hits.
 - GitHub Actions bumped to Node 24 action releases (`checkout@v5`,
-  `upload-artifact@v6`), and the Tor readiness check reworked to gate on the
-  SOCKS port plus a reliable routing target instead of a rate-limited endpoint.
+  `upload-artifact@v6`). Tor now runs by **installing the `tor` package on the
+  runner** instead of the unpinned `torsocc` service container (which opened
+  9050 but never bootstrapped a circuit); readiness gates on Tor's own
+  authoritative `Bootstrapped 100%` log line, with a routing check as secondary
+  confirmation and the Tor log dumped on failure.
 
 ### Fixed
 - Deprecated/broken ZoomEye and Censys API endpoints no longer error out.
