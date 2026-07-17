@@ -126,7 +126,73 @@ interesting_paths = [
     {'uri': '/.user.ini', 'code': 200, 'text': None},
     {'uri': '/.vscode', 'code': 200, 'text': None},
     {'uri': '/.well-known', 'code': 200, 'text': None},
-    {'uri': '/.ini', 'code': 200, 'text': None}
+    {'uri': '/.ini', 'code': 200, 'text': None},
+
+    # --- origin-IP / internal-address leaks (highest value for deanon) ---
+    # These endpoints print the server's own address, internal hostnames, or
+    # backend topology - i.e. exactly what a hidden service is trying to hide.
+    {'uri': '/server-status?auto', 'code': 200, 'text': 'Total Accesses'},   # Apache mod_status (machine-readable)
+    {'uri': '/nginx_status', 'code': 200, 'text': 'Active connections'},     # nginx stub_status
+    {'uri': '/stub_status', 'code': 200, 'text': 'Active connections'},
+    {'uri': '/status?full', 'code': 200, 'text': 'accepted conn'},           # PHP-FPM status
+    {'uri': '/fpm-status', 'code': 200, 'text': 'accepted conn'},
+    {'uri': '/php-fpm-status', 'code': 200, 'text': 'accepted conn'},
+    {'uri': '/metrics', 'code': 200, 'text': '# TYPE'},                      # Prometheus exposition (instance= labels leak IP:port)
+    {'uri': '/debug/vars', 'code': 200, 'text': 'cmdline'},                  # Go expvar (cmdline / memstats)
+    {'uri': '/debug/pprof/', 'code': 200, 'text': 'profiles'},              # Go net/http/pprof index
+    {'uri': '/_profiler/', 'code': 200, 'text': 'Profiler'},                # Symfony profiler (SERVER_ADDR = origin IP)
+    {'uri': '/app_dev.php', 'code': 200, 'text': None},                     # Symfony dev front controller
+    {'uri': '/actuator', 'code': 200, 'text': '_links'},                    # Spring Boot Actuator index
+    {'uri': '/actuator/health', 'code': 200, 'text': 'status'},
+    {'uri': '/actuator/env', 'code': 200, 'text': 'propertySources'},       # leaks env vars, hostnames
+    {'uri': '/actuator/configprops', 'code': 200, 'text': 'contexts'},
+    {'uri': '/actuator/mappings', 'code': 200, 'text': 'dispatcherServlet'},
+    {'uri': '/actuator/heapdump', 'code': 200, 'text': None},               # full heap - credentials & addresses
+    {'uri': '/telescope/requests', 'code': 200, 'text': 'Telescope'},       # Laravel Telescope
+    {'uri': '/horizon/api/stats', 'code': 200, 'text': None},              # Laravel Horizon
+    {'uri': '/_ignition/health-check', 'code': 200, 'text': 'can_execute_commands'},  # Laravel Ignition
+
+    # --- version-control / attribution leaks (who runs it) ---
+    {'uri': '/.git/HEAD', 'code': 200, 'text': 'ref:'},
+    {'uri': '/.git/logs/HEAD', 'code': 200, 'text': None},                 # commit author names + e-mails
+    {'uri': '/.svn/entries', 'code': 200, 'text': None},
+    {'uri': '/.svn/wc.db', 'code': 200, 'text': None},
+    {'uri': '/.hg/store', 'code': 200, 'text': None},
+    {'uri': '/.bzr/branch/last-revision', 'code': 200, 'text': None},
+    {'uri': '/humans.txt', 'code': 200, 'text': None},                     # frequently names the operators
+
+    # --- config / secret files (connection strings, keys, backend hosts) ---
+    {'uri': '/.env.local', 'code': 200, 'text': None},
+    {'uri': '/.env.production', 'code': 200, 'text': None},
+    {'uri': '/.env.dev', 'code': 200, 'text': None},
+    {'uri': '/.env.backup', 'code': 200, 'text': None},
+    {'uri': '/appsettings.json', 'code': 200, 'text': 'ConnectionStrings'}, # .NET
+    {'uri': '/web.config', 'code': 200, 'text': 'configuration'},
+    {'uri': '/docker-compose.yml', 'code': 200, 'text': 'services'},
+    {'uri': '/docker-compose.yaml', 'code': 200, 'text': 'services'},
+    {'uri': '/config.json', 'code': 200, 'text': None},
+    {'uri': '/config.yml', 'code': 200, 'text': None},
+    {'uri': '/settings.py', 'code': 200, 'text': None},
+    {'uri': '/wp-config.php.save', 'code': 200, 'text': None},
+    {'uri': '/wp-config.php.orig', 'code': 200, 'text': None},
+    {'uri': '/wp-config.php~', 'code': 200, 'text': None},
+    {'uri': '/.aws/credentials', 'code': 200, 'text': None},
+    {'uri': '/.ssh/id_rsa', 'code': 200, 'text': None},
+    {'uri': '/.npmrc', 'code': 200, 'text': None},
+    {'uri': '/.netrc', 'code': 200, 'text': None},
+    {'uri': '/.kube/config', 'code': 200, 'text': None},
+
+    # --- APIs / dashboards that enumerate users or expose infrastructure ---
+    {'uri': '/wp-json/wp/v2/users', 'code': 200, 'text': 'slug'},           # WordPress author enumeration
+    {'uri': '/?rest_route=/wp/v2/users', 'code': 200, 'text': 'slug'},
+    {'uri': '/graphiql', 'code': 200, 'text': 'GraphiQL'},
+    {'uri': '/_cluster/health', 'code': 200, 'text': 'cluster_name'},       # Elasticsearch
+    {'uri': '/solr/', 'code': 200, 'text': 'Solr'},
+    {'uri': '/vault/ui/', 'code': 200, 'text': 'Vault'},                    # HashiCorp Vault
+    {'uri': '/rabbitmq', 'code': 200, 'text': 'RabbitMQ'},
+    {'uri': '/flower/', 'code': 200, 'text': 'Flower'},                     # Celery Flower
+    {'uri': '/pma/', 'code': 200, 'text': 'phpMyAdmin'},
+    {'uri': '/dbadmin/', 'code': 200, 'text': None}
 ]
 
 async def fetch(location, path, session, results_list):
@@ -200,6 +266,50 @@ def _get_path_description(uri):
         '/phpinfo.php': 'PHP Info',
         '/swagger-ui.html': 'Swagger API Docs',
         '/.DS_Store': 'macOS Metadata',
+        '/server-status?auto': 'Apache Status (machine-readable, leaks addresses)',
+        '/nginx_status': 'nginx stub_status (leaks connections)',
+        '/stub_status': 'nginx stub_status (leaks connections)',
+        '/status?full': 'PHP-FPM Status',
+        '/fpm-status': 'PHP-FPM Status',
+        '/php-fpm-status': 'PHP-FPM Status',
+        '/metrics': 'Prometheus Metrics (instance labels leak IP:port)',
+        '/debug/vars': 'Go expvar (cmdline / memstats)',
+        '/debug/pprof/': 'Go pprof profiler',
+        '/_profiler/': 'Symfony Profiler (leaks SERVER_ADDR = origin IP)',
+        '/app_dev.php': 'Symfony Dev Front Controller',
+        '/actuator': 'Spring Boot Actuator',
+        '/actuator/health': 'Spring Boot Actuator Health',
+        '/actuator/env': 'Spring Actuator Env (leaks vars & hostnames)',
+        '/actuator/configprops': 'Spring Actuator Config Properties',
+        '/actuator/mappings': 'Spring Actuator Mappings',
+        '/actuator/heapdump': 'Spring Actuator Heap Dump (credentials & addresses)',
+        '/telescope/requests': 'Laravel Telescope',
+        '/horizon/api/stats': 'Laravel Horizon',
+        '/_ignition/health-check': 'Laravel Ignition',
+        '/.git/HEAD': 'Git Repository (HEAD)',
+        '/.git/logs/HEAD': 'Git Reflog (author names & e-mails)',
+        '/.svn/entries': 'Subversion Metadata',
+        '/.svn/wc.db': 'Subversion Working Copy DB',
+        '/.hg/store': 'Mercurial Store',
+        '/.bzr/branch/last-revision': 'Bazaar Branch',
+        '/humans.txt': 'humans.txt (operator names)',
+        '/appsettings.json': '.NET App Settings (connection strings)',
+        '/web.config': 'IIS web.config',
+        '/docker-compose.yml': 'Docker Compose (service topology)',
+        '/docker-compose.yaml': 'Docker Compose (service topology)',
+        '/appsettings.Production.json': '.NET App Settings (production)',
+        '/.aws/credentials': 'AWS Credentials',
+        '/.ssh/id_rsa': 'SSH Private Key',
+        '/.kube/config': 'Kubernetes Config',
+        '/wp-json/wp/v2/users': 'WordPress User Enumeration',
+        '/?rest_route=/wp/v2/users': 'WordPress User Enumeration',
+        '/graphiql': 'GraphiQL Console',
+        '/_cluster/health': 'Elasticsearch Cluster Health',
+        '/solr/': 'Apache Solr Admin',
+        '/vault/ui/': 'HashiCorp Vault',
+        '/rabbitmq': 'RabbitMQ Management',
+        '/flower/': 'Celery Flower',
+        '/pma/': 'phpMyAdmin',
     }
     return descriptions.get(uri, 'Discovered Path')
 
