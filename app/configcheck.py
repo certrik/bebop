@@ -18,7 +18,9 @@ async def is_catch_all(session, location, attempts=3):
         uri = location + random_path
         try:
             log.debug('scanning %s as for catch-all validation', uri)
-            async with session.get(uri, timeout=10) as response:
+            # ssl=False: onion/origin services routinely present self-signed
+            # certs; verifying would fail every HTTPS path check.
+            async with session.get(uri, timeout=10, ssl=False) as response:
                 if response.status != 200:  
                     return False
         except Exception as e:
@@ -131,7 +133,7 @@ async def fetch(location, path, session, results_list):
     uri = location + path['uri']
     log.debug('scanning %s - expecting %s', uri, path['code'])
     try:
-        async with session.get(uri) as response:
+        async with session.get(uri, ssl=False) as response:
             text = await response.text()
             matched = False
             matched_text = None

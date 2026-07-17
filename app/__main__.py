@@ -127,7 +127,7 @@ def main():
     if requestobject.status_code != 200:
         logging.warning('unexpected response code: %s', requestobject.status_code)
     if args.target.startswith('https'):
-        targetport = getport(args.target)
+        targetport = getport(args.target) or 443
         getcert_data = getcert_main(fqdn, port=targetport)
 
     title_data = title_main(requestobject)
