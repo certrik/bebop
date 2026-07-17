@@ -209,8 +209,10 @@ def query_modat(squery):
     Query the Modat Magnify service-level search API.
     https://api.magnify.modat.io/docs
 
-    Queries use the Modat query language (e.g. `web.title ~ "Login"`,
-    `tls.fingerprint_sha256:<hash>`).
+    Queries use Modat's own `web.*`/`cert.*` search vocabulary with `field="value"`
+    syntax (e.g. `web.html.sha256="<hash>"`). Note this vocabulary differs from
+    the response model's field names and is not in the OpenAPI spec; a 422
+    "Unsupported field(s) detected" is a free (0-quota) way to validate a field.
     '''
     findings = []
     if not MODAT_API_KEY:
@@ -224,8 +226,13 @@ def query_modat(squery):
     headers = {
         'Authorization': f'Bearer {MODAT_API_KEY}',
         'Content-Type': 'application/json',
+        # Cloudflare 1010-blocks the default python-requests UA on this API; a
+        # browser-like UA avoids the 403.
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                      '(KHTML, like Gecko) Chrome/122.0 Safari/537.36',
     }
-    # page_size accepts 10-100; 20 lets us confirm the rarity threshold in one page.
+    # page_size minimum is 10 (smaller values 422); 20 confirms the rarity
+    # threshold in one page.
     payload = {'query': squery, 'page': 1, 'page_size': 20}
 
     try:
