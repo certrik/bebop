@@ -112,3 +112,4 @@ jobs:
           path: |
             /tmp/log.txt
             /tmp/bebop-report.html
+            /tmp/bebop-report.md
