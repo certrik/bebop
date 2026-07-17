@@ -70,7 +70,7 @@ the onion baseline.
 - Invalid engine queries surfaced by live runs corrected: Censys header
   (`web.endpoints.http.headers` key/value), title
   (`web.endpoints.http.html_title`), and favicon
-  (`web.endpoints.http.favicons.md5_hash`) fields; Modat body-hash field
+  (`web.endpoints.http.favicons.hash_md5`) fields; Modat body-hash field
   (`web.html.sha256`); embedded quotes stripped from `etag`/`server` header
   pivots.
 - `getport()` returning `None` for a schemeless `https://` target no longer

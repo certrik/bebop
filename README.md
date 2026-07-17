@@ -140,7 +140,7 @@ field extractions for bitcoin, monero and ethereum - leveraging blockcypher & wa
 - the favicon discovery will attempt to parse the icon from any HTML, falling back to hardcoded paths
 - if found, the favicon is downloaded and an [MurmurHash](https://commons.apache.org/proper/commons-codec/apidocs/org/apache/commons/codec/digest/MurmurHash3.html) is computed
 - the hash is searched against the following engines where credentials are provided
-`shodan:http.favicon.hash`, `censys:host.services.http.response.favicons.md5_hash`, `zoomeye:iconhash` & `modat:web.favicon.mmh3`
+`shodan:http.favicon.hash`, `censys:web.endpoints.http.favicons.hash_md5`, `zoomeye:iconhash` & `modat:web.favicon.mmh3`
 
 _to avoid noise, a list of the top 200 favicons have been added to this repository - if a finding is matched, it will not be considered unique - see the housekeeping section for details_
 
