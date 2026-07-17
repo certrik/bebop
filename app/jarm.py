@@ -8,7 +8,7 @@ responses into a 62-character fingerprint. Because the fingerprint depends on
 the server's TLS stack and configuration rather than its address, a hidden
 service and its exposed clearnet origin - if they share a TLS terminator -
 produce the same JARM. All of Shodan (ssl.jarm), ZoomEye (ssl.jarm), Modat
-(tls.jarm) and Censys index it, so a match is a strong deanonymisation pivot.
+(cert.jarm) and Censys index it, so a match is a strong deanonymisation pivot.
 
 The byte-exact packet construction, ServerHello parsing and hashing come from
 the maintained reference implementation (pyjarm); only the transport is
