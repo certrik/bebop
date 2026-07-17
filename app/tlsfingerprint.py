@@ -244,7 +244,7 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
     }
 
     # JARM active fingerprint - a strong cross-host pivot indexed by every
-    # engine (Shodan ssl.jarm, ZoomEye ssl.jarm, Modat tls.jarm, Censys).
+    # engine (Shodan ssl.jarm, ZoomEye ssl.jarm, Modat cert.jarm, Censys).
     jarm_hash = compute_jarm(hostname, port, usetor=usetor)
     if jarm_hash:
         findings['jarm'] = jarm_hash
@@ -256,7 +256,7 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
         if dozoome:
             query_zoomeye(f'ssl.jarm:"{jarm_hash}"')
         if domodat:
-            query_modat(f'tls.jarm:{jarm_hash}')
+            query_modat(f'cert.jarm="{jarm_hash}"')
         if dovalidin:
             query_validin_pivot(jarm_hash)
 
@@ -302,7 +302,7 @@ def main(hostname, port=443, usetor=True, doshodan=True, docensys=True, dozoome=
         if dozoome:
             query_zoomeye(f'ssl.fingerprint:"{cert_fps["sha256"]}"')
         if domodat:
-            query_modat(f'tls.fingerprint_sha256:{cert_fps["sha256"]}')
+            query_modat(f'cert.fingerprint.sha256="{cert_fps["sha256"]}"')
         if dovalidin:
             # Validin pivots certificates on the SHA1 fingerprint.
             query_validin_pivot(cert_fps['sha1'])

@@ -100,7 +100,7 @@ def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, do
         if dofofa is True:
             query_fofa('cert="' + str(crypto_cert.serial_number) + '"')
         if domodat is True:
-            query_modat('tls.serial_number:' + str(crypto_cert.serial_number))
+            query_modat('cert.serial="' + str(crypto_cert.serial_number) + '"')
     else:
         logging.debug('serial number match in common list, not searching shodan')
     data = {

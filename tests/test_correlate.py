@@ -37,7 +37,7 @@ class TestCorrelate(unittest.TestCase):
         # strong candidate: 3 independent categories
         correlate.add_candidate('1.1.1.1', 'shodan', 'http.favicon.hash:1')
         correlate.add_candidate('1.1.1.1', 'censys', 'ssl.jarm:x')
-        correlate.add_candidate('1.1.1.1', 'modat', 'tls.fingerprint_sha256:y')
+        correlate.add_candidate('1.1.1.1', 'modat', 'cert.fingerprint.sha256="y"')
         # weak candidate: 1 category, seen twice
         correlate.add_candidate('2.2.2.2', 'shodan', 'http.favicon.hash:1')
         correlate.add_candidate('2.2.2.2', 'zoomeye', 'iconhash:1')

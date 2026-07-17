@@ -178,7 +178,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
                 if dozoome:
                     query_zoomeye(f'hostname:"{domain}"')
                 if domodat:
-                    query_modat(f'fqdns:{domain}')
+                    query_modat(f'domain="{domain}"')
 
     # Analyze CORS header
     if 'access-control-allow-origin' in requestobject.headers:
@@ -195,7 +195,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
             if dozoome:
                 query_zoomeye(f'hostname:"{cors_origin}"')
             if domodat:
-                query_modat(f'fqdns:{cors_origin}')
+                query_modat(f'domain="{cors_origin}"')
 
     # Extract HTTP/2 info
     http2_info = extract_http2_info(requestobject)
