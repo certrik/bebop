@@ -103,6 +103,18 @@ def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, do
             query_modat('cert.serial="' + str(crypto_cert.serial_number) + '"')
     else:
         logging.debug('serial number match in common list, not searching shodan')
+    # Certificate subject/issuer CN pivots (Modat). Independent of the serial:
+    # a self-signed hidden service frequently reuses a distinctive CN across the
+    # operator's clearnet infrastructure, and a CA-issued cert's subject CN is the
+    # origin hostname itself. Common issuers (Let's Encrypt, etc.) simply fail
+    # Modat's rarity gate and get skipped, so they cost nothing.
+    if domodat is True:
+        common_name = get_common_name(crypto_cert)
+        if common_name:
+            query_modat('cert.subject.cn="' + common_name + '"')
+        issuer_cn = get_issuer(crypto_cert)
+        if issuer_cn:
+            query_modat('cert.issuer.cn="' + issuer_cn + '"')
     data = {
         'alt_names': get_alt_names(crypto_cert),
         'common_name': get_common_name(crypto_cert),
