@@ -577,6 +577,80 @@ interesting_paths = [
     {'uri': '/.well-known/oauth-authorization-server', 'code': 200, 'text': 'issuer', 'desc': 'OAuth AS metadata (issuer host)'},
     {'uri': '/sitemap_index.xml', 'code': 200, 'text': None, 'desc': 'Sitemap index'},
     {'uri': '/wp-links-opml.php', 'code': 200, 'text': 'opml', 'desc': 'WordPress OPML (blogroll)'},
+
+    # ------------------------------------------------------------------ #
+    # cluster / monitoring endpoints that enumerate internal IPs (deanon) #
+    # ------------------------------------------------------------------ #
+    {'uri': '/api/v1/targets', 'code': 200, 'text': 'scrapeUrl', 'desc': 'Prometheus targets (internal scrape IPs)'},
+    {'uri': '/api/v1/status/config', 'code': 200, 'text': 'yaml', 'desc': 'Prometheus config (scrape targets)'},
+    {'uri': '/prometheus/api/v1/targets', 'code': 200, 'text': 'scrapeUrl', 'desc': 'Prometheus targets (proxied)'},
+    {'uri': '/_membership', 'code': 200, 'text': 'cluster_nodes', 'desc': 'CouchDB cluster membership (node IPs)'},
+    {'uri': '/_all_dbs', 'code': 200, 'text': None, 'desc': 'CouchDB database list'},
+    {'uri': '/_node/_local/_config', 'code': 200, 'text': None, 'desc': 'CouchDB node config'},
+    {'uri': '/query?q=SHOW+DATABASES', 'code': 200, 'text': 'results', 'desc': 'InfluxDB query (databases)'},
+    {'uri': '/replicas_status', 'code': 200, 'text': None, 'desc': 'ClickHouse replica status'},
+    {'uri': '/glances/api/3/all', 'code': 200, 'text': None, 'desc': 'Glances host stats (IPs)'},
+    {'uri': '/glances/api/4/all', 'code': 200, 'text': None, 'desc': 'Glances host stats (IPs)'},
+    {'uri': '/minio/health/live', 'code': 200, 'text': None, 'desc': 'MinIO health'},
+    {'uri': '/debug/pprof/heap', 'code': 200, 'text': None, 'desc': 'Go pprof heap'},
+
+    # ------------------------------------------------------------------ #
+    # build / version / attribution (git commit, maintainers)            #
+    # ------------------------------------------------------------------ #
+    {'uri': '/actuator/info', 'code': 200, 'text': None, 'desc': 'Spring Actuator info (git commit/build)'},
+    {'uri': '/META-INF/MANIFEST.MF', 'code': 200, 'text': None, 'desc': 'Java manifest (build/version)'},
+    {'uri': '/version.json', 'code': 200, 'text': None, 'desc': 'Version manifest'},
+    {'uri': '/build.json', 'code': 200, 'text': None, 'desc': 'Build manifest'},
+    {'uri': '/REVISION', 'code': 200, 'text': None, 'desc': 'Deployed revision'},
+
+    # ------------------------------------------------------------------ #
+    # JS source maps (leak source tree paths, dev comments, usernames)    #
+    # ------------------------------------------------------------------ #
+    {'uri': '/main.js.map', 'code': 200, 'text': None, 'desc': 'JS source map (source paths)'},
+    {'uri': '/app.js.map', 'code': 200, 'text': None, 'desc': 'JS source map'},
+    {'uri': '/bundle.js.map', 'code': 200, 'text': None, 'desc': 'JS source map'},
+    {'uri': '/static/js/main.js.map', 'code': 200, 'text': None, 'desc': 'JS source map (CRA)'},
+
+    # ------------------------------------------------------------------ #
+    # more framework configs / deploy secrets                            #
+    # ------------------------------------------------------------------ #
+    {'uri': '/config/credentials.yml.enc', 'code': 200, 'text': None, 'desc': 'Rails encrypted credentials'},
+    {'uri': '/config/credentials/production.key', 'code': 200, 'text': None, 'desc': 'Rails production key'},
+    {'uri': '/config/environments/production.rb', 'code': 200, 'text': None, 'desc': 'Rails production env'},
+    {'uri': '/WEB-INF/classes/application.properties', 'code': 200, 'text': None, 'desc': 'Spring properties (WEB-INF)'},
+    {'uri': '/WEB-INF/applicationContext.xml', 'code': 200, 'text': None, 'desc': 'Spring context (WEB-INF)'},
+    {'uri': '/bootstrap.yml', 'code': 200, 'text': None, 'desc': 'Spring Cloud bootstrap config'},
+    {'uri': '/nuxt.config.js', 'code': 200, 'text': None, 'desc': 'Nuxt config'},
+    {'uri': '/next.config.js', 'code': 200, 'text': None, 'desc': 'Next.js config'},
+    {'uri': '/ecosystem.config.js', 'code': 200, 'text': None, 'desc': 'PM2 ecosystem config (env)'},
+    {'uri': '/uwsgi.ini', 'code': 200, 'text': None, 'desc': 'uWSGI config'},
+    {'uri': '/manage.py', 'code': 200, 'text': None, 'desc': 'Django manage.py'},
+    {'uri': '/wsgi.py', 'code': 200, 'text': None, 'desc': 'WSGI entry (paths)'},
+    {'uri': '/.terraformrc', 'code': 200, 'text': None, 'desc': 'Terraform CLI config (creds)'},
+    {'uri': '/terraform.tfvars', 'code': 200, 'text': None, 'desc': 'Terraform variables (secrets)'},
+    {'uri': '/knife.rb', 'code': 200, 'text': None, 'desc': 'Chef knife config'},
+    {'uri': '/user-data', 'code': 200, 'text': None, 'desc': 'cloud-init user-data (secrets)'},
+
+    # ------------------------------------------------------------------ #
+    # webmail / groupware & queue dashboards                             #
+    # ------------------------------------------------------------------ #
+    {'uri': '/rainloop/data/', 'code': 200, 'text': None, 'desc': 'RainLoop data dir (configs/creds)'},
+    {'uri': '/roundcube/', 'code': 200, 'text': 'Roundcube', 'desc': 'Roundcube webmail'},
+    {'uri': '/SOGo/', 'code': 200, 'text': 'SOGo', 'desc': 'SOGo groupware'},
+    {'uri': '/admin/queues', 'code': 200, 'text': 'Bull', 'desc': 'Bull/BullMQ queue dashboard'},
+    {'uri': '/resque', 'code': 200, 'text': 'Resque', 'desc': 'Resque dashboard'},
+
+    # ------------------------------------------------------------------ #
+    # more POST vectors (RPC / GraphQL mounts)                            #
+    # ------------------------------------------------------------------ #
+    {'uri': '/api_jsonrpc.php', 'code': 200, 'text': 'jsonrpc', 'desc': 'Zabbix API (apiinfo.version)',
+     'method': 'POST', 'json': {'jsonrpc': '2.0', 'method': 'apiinfo.version', 'params': {}, 'id': 1}},
+    {'uri': '/jsonrpc', 'code': 200, 'text': 'jsonrpc', 'desc': 'JSON-RPC endpoint',
+     'method': 'POST', 'json': {'jsonrpc': '2.0', 'method': 'system.listMethods', 'id': 1}},
+    {'uri': '/v2/graphql', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (schema disclosure)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
+    {'uri': '/admin/api', 'code': 200, 'text': '__schema', 'desc': 'GraphQL introspection (admin mount)',
+     'method': 'POST', 'json': {'query': '{__schema{queryType{name}}}'}},
 ]
 
 # --- origin-indicator extraction --------------------------------------- #
