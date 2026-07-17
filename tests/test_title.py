@@ -10,24 +10,28 @@ class testTitleFn(unittest.TestCase):
         self.common_titles = ["Welcome to nginx!", "RouterOS router configuration page"]
         self.mock_requestobject = MagicMock()
         self.mock_requestobject.text = "<html><title>{}</title></html>"
-    @patch('app.title.subprocessors.query_shodan')
-    @patch('app.title.subprocessors.query_censys')
-    @patch('app.title.subprocessors.query_zoomeye')
-    @patch('app.title.subprocessors.query_fofa')
-    def test_unique_title(self, mock_query_fofa, mock_query_zoomeye, mock_query_censys, mock_query_shodan):
+
+    @patch('app.title.query_shodan')
+    @patch('app.title.query_censys')
+    @patch('app.title.query_zoomeye')
+    @patch('app.title.query_fofa')
+    @patch('app.title.query_modat')
+    def test_unique_title(self, mock_query_modat, mock_query_fofa, mock_query_zoomeye, mock_query_censys, mock_query_shodan):
         unique_title = "276F4776-FC90-4CA5-B044-C0E3D60934BF"
         self.mock_requestobject.text = self.mock_requestobject.text.format(unique_title)
         title_returned = main(self.mock_requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
         self.assertEqual(title_returned, unique_title)
         mock_query_shodan.assert_called_with('http.title:"{}"'.format(unique_title))
-        mock_query_censys.assert_called_with('services.http.response.html_title:"{}"'.format(unique_title))
+        mock_query_censys.assert_called_with('web.endpoints.http.html_title="{}"'.format(unique_title))
         mock_query_zoomeye.assert_called_with('title:"{}"'.format(unique_title))
         mock_query_fofa.assert_called_with('title={}'.format(unique_title))
-    @patch('app.title.subprocessors.query_shodan')
-    @patch('app.title.subprocessors.query_censys')
-    @patch('app.title.subprocessors.query_zoomeye')
-    @patch('app.title.subprocessors.query_fofa')
-    def test_common_title(self, mock_query_fofa, mock_query_zoomeye, mock_query_censys, mock_query_shodan):
+
+    @patch('app.title.query_shodan')
+    @patch('app.title.query_censys')
+    @patch('app.title.query_zoomeye')
+    @patch('app.title.query_fofa')
+    @patch('app.title.query_modat')
+    def test_common_title(self, mock_query_modat, mock_query_fofa, mock_query_zoomeye, mock_query_censys, mock_query_shodan):
         common_title = "Welcome to nginx!"
         self.mock_requestobject.text = self.mock_requestobject.text.format(common_title)
         title_returned = main(self.mock_requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
@@ -36,11 +40,13 @@ class testTitleFn(unittest.TestCase):
         mock_query_censys.assert_not_called()
         mock_query_zoomeye.assert_not_called()
         mock_query_fofa.assert_not_called()
-    @patch('app.title.subprocessors.query_shodan')
-    @patch('app.title.subprocessors.query_censys')
-    @patch('app.title.subprocessors.query_zoomeye')
-    @patch('app.title.subprocessors.query_fofa')
-    def test_no_title(self, mock_query_fofa, mock_query_zoomeye, mock_query_censys, mock_query_shodan):
+
+    @patch('app.title.query_shodan')
+    @patch('app.title.query_censys')
+    @patch('app.title.query_zoomeye')
+    @patch('app.title.query_fofa')
+    @patch('app.title.query_modat')
+    def test_no_title(self, mock_query_modat, mock_query_fofa, mock_query_zoomeye, mock_query_censys, mock_query_shodan):
         self.mock_requestobject.text = "<html></html>"
         title_returned = main(self.mock_requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True)
         self.assertIsNone(title_returned)

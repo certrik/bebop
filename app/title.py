@@ -24,7 +24,8 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
             if doshodan:
                 query_shodan('http.title:"' + title.text + '"')
             if docensys:
-                querystr = 'host.services.http.response.html_title="' + title.text + '"'
+                # Platform v3: the page title lives on the web dataset.
+                querystr = 'web.endpoints.http.html_title="' + title.text + '"'
                 query_censys(querystr)
             if dozoome:
                 query_zoomeye('title:"' + title.text + '"')
