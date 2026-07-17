@@ -121,7 +121,14 @@ def resolve_config(args=None, env=None):
     except (TypeError, ValueError):
         wait = 25
 
-    path_style = bool(pick('oob_path_style', 'BEBOP_OOB_PATH_STYLE', False))
+    def truthy(v):
+        # argparse store_true gives a bool; env gives a string. "0"/"false"/""
+        # must read as False (plain bool() on a non-empty string is always True).
+        if isinstance(v, bool):
+            return v
+        return str(v).strip().lower() in ('1', 'true', 'yes', 'on')
+
+    path_style = truthy(pick('oob_path_style', 'BEBOP_OOB_PATH_STYLE', False))
 
     return {
         'host': host.strip().rstrip('/'),

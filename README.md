@@ -144,7 +144,9 @@ egress IP. Enable with `--oob-callback <host>` (or `BEBOP_OOB_*` env vars in
 CI). **This is intrusive and can expose you — the callback reveals your
 infrastructure to the target, and the Tor anonymity on the probe leg does not
 cover the callback leg. Read [OPSEC.md](OPSEC.md) before using it, and only run
-it with authorisation.**
+it with authorisation.** A copy-pasteable burner setup (self-hosted source-IP
+listener + exact secret values for local and GitHub Actions runs) is in
+[docs/oob-listener-runbook.md](docs/oob-listener-runbook.md).
 
 ### cryptocurrency
 

@@ -68,8 +68,9 @@ def main():
     parser.add_argument('--oob-inject', action='append',
                         help='SSRF URL template with {CALLBACK} (repeatable)', default=None)
     parser.add_argument('--oob-wait', help='seconds to wait for a callback (default 25)', default=None)
-    parser.add_argument('--oob-path-style', action='store_true',
-                        help='use host/token instead of token.host callbacks', default=False)
+    parser.add_argument('--oob-path-style', action='store_true', default=None,
+                        help='use host/token instead of token.host callbacks '
+                             '(also BEBOP_OOB_PATH_STYLE=1 for CI)')
     args = parser.parse_args()
 
     logging.basicConfig(
