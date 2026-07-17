@@ -27,6 +27,7 @@ from app import correlate
 from app import oob
 from app.tlsfingerprint import main as tlsfingerprint_main
 from app.htmlreport import generate_html_report, save_html_report
+from app.textreport import generate_text_report, save_text_report
 from app.utilities import preflight, getfqdn, getbaseurl, validurl, getport, refang_url
 
 
@@ -49,6 +50,9 @@ def main():
                         default='Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0')
     parser.add_argument('--html-report',
                         help='generate HTML report (file path)',
+                        default=None)
+    parser.add_argument('--text-report',
+                        help='generate a findings-only Markdown/text report (file path)',
                         default=None)
     # --- out-of-band callback deanonymisation (ACTIVE / opt-in) ---
     # WARNING: this induces the target to connect back to your listener, which
@@ -290,73 +294,78 @@ def main():
     duration = end_time - start_time
     duration_str = f"{int(duration // 60)}m {int(duration % 60)}s"
 
-    # Determine if HTML report should be generated
-    should_generate_html = args.html_report or (os.environ.get('GITHUB_ACTIONS') and args.loglevel == 'DEBUG')
+    # In GitHub Actions with DEBUG logging, emit both reports by default.
+    in_ci_debug = bool(os.environ.get('GITHUB_ACTIONS') and args.loglevel == 'DEBUG')
+    should_generate_html = bool(args.html_report) or in_ci_debug
+    should_generate_text = bool(args.text_report) or in_ci_debug
 
-    logging.info(f"HTML Report Decision: html_report={args.html_report}, GITHUB_ACTIONS={os.environ.get('GITHUB_ACTIONS')}, loglevel={args.loglevel}, will_generate={should_generate_html}")
+    # Build the shared scan-data payload once if any report is wanted.
+    scan_data = None
+    if should_generate_html or should_generate_text:
+        scan_data = {
+            'target': args.target,
+            'scan_date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'duration': duration_str,
+            'summary': {
+                'fqdn': fqdn,
+                'status_code': requestobject.status_code,
+                'open_ports_count': len(portscan_data.get('ports', [])) if portscan_data else 0,
+                'paths_discovered_count': len(discovered_paths) if discovered_paths else 0,
+                'use_tor': torstate
+            },
+            'discovered_paths': discovered_paths or [],
+            'origin_leaks': origin_leaks,
+            'oob': oob_result,
+            'headers': header_data,
+            'all_headers': dict(requestobject.headers),  # Pass all raw headers
+            'title': title_data,
+            'certificate': getcert_data if args.target.startswith('https') else None,
+            'ports': portscan_data,
+            'favicon': favicon_data,
+            'analytics': analytics_data,
+            'contentleak': contentleak_data,
+            'robotsmap': robotsmap_data,
+            'tls_fingerprint': tlsfingerprint_data,
+            'cryptocurrency': cryptocurrency_data,
+            'pagespider': pagespider_data,
+            'domains': domains_data,
+            'deanon_candidates': deanon_candidates,
+            'reverse_resolved': reverse_resolved
+        }
 
     # Generate HTML report if requested
     if should_generate_html:
         logging.info("🎨 Generating HTML report...")
-
         try:
-            # Prepare scan data for report
-            scan_data = {
-                'target': args.target,
-                'scan_date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
-                'duration': duration_str,
-                'summary': {
-                    'fqdn': fqdn,
-                    'status_code': requestobject.status_code,
-                    'open_ports_count': len(portscan_data.get('ports', [])) if portscan_data else 0,
-                    'paths_discovered_count': len(discovered_paths) if discovered_paths else 0,
-                    'use_tor': torstate
-                },
-                'discovered_paths': discovered_paths or [],
-                'origin_leaks': origin_leaks,
-                'oob': oob_result,
-                'headers': header_data,
-                'all_headers': dict(requestobject.headers),  # Pass all raw headers
-                'title': title_data,
-                'certificate': getcert_data if args.target.startswith('https') else None,
-                'ports': portscan_data,
-                'favicon': favicon_data,
-                'analytics': analytics_data,
-                'contentleak': contentleak_data,
-                'robotsmap': robotsmap_data,
-                'tls_fingerprint': tlsfingerprint_data,
-                'cryptocurrency': cryptocurrency_data,
-                'pagespider': pagespider_data,
-                'domains': domains_data,
-                'deanon_candidates': deanon_candidates,
-                'reverse_resolved': reverse_resolved
-            }
-
-            # Generate HTML
-            logging.info("📝 Rendering HTML template...")
             html_content = generate_html_report(scan_data)
-            logging.info(f"✓ Generated {len(html_content)} bytes of HTML")
-
-            # Determine output path
-            if args.html_report:
-                output_path = args.html_report
-            else:
-                # Default path for GitHub Actions
-                output_path = '/tmp/bebop-report.html'
-
-            # Save report
-            logging.info(f"💾 Saving HTML report to: {output_path}")
+            output_path = args.html_report or '/tmp/bebop-report.html'
             if save_html_report(html_content, output_path):
-                logging.info(f"✅ HTML report saved successfully to: {output_path}")
+                logging.info(f"✅ HTML report saved to: {output_path}")
             else:
                 logging.error("❌ Failed to save HTML report")
-
         except Exception as e:
             logging.error(f"❌ Error generating HTML report: {e}")
             import traceback
             logging.error(traceback.format_exc())
-    else:
-        logging.info("ℹ️  HTML report generation skipped (set loglevel=DEBUG in GitHub Actions to enable)")
+
+    # Generate findings-only text/Markdown report if requested
+    if should_generate_text:
+        logging.info("📝 Generating text report...")
+        try:
+            text_content = generate_text_report(scan_data)
+            output_path = args.text_report or '/tmp/bebop-report.md'
+            if save_text_report(text_content, output_path):
+                logging.info(f"✅ Text report saved to: {output_path}")
+            else:
+                logging.error("❌ Failed to save text report")
+        except Exception as e:
+            logging.error(f"❌ Error generating text report: {e}")
+            import traceback
+            logging.error(traceback.format_exc())
+
+    if not should_generate_html and not should_generate_text:
+        logging.info("ℹ️  report generation skipped (pass --html-report/--text-report, "
+                     "or set loglevel=DEBUG in GitHub Actions)")
 
 
 if __name__ == '__main__':

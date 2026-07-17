@@ -66,6 +66,14 @@ the onion baseline.
   reuses a distinctive CN across the operator's clearnet infrastructure, and a
   CA-issued cert's subject CN is the origin hostname itself.
 
+#### Reporting
+- **Findings-only Markdown/text report** (`app/textreport.py`, `--text-report`):
+  a third output format alongside the log stream and the HTML report. Lists
+  *only findings* — no errors, no log noise — and is deliberately **more
+  comprehensive than the HTML report** (adds full raw response headers, robots/
+  sitemap, page-spider links, all body hashes, SSH host keys/CPE, etc.). Empty
+  sections are omitted. Emitted in CI (`/tmp/bebop-report.md`) when HTML is.
+
 #### Workflow
 - **http→https protocol fallback**: when the scheme is auto-assumed, a failed
   `http://` fetch is retried over `https://`, engaging the downstream

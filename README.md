@@ -400,6 +400,8 @@ After the workflow completes:
 1. **Download the "bebop-results" artifact** containing:
    - `log.txt` - Complete scan output with all findings
    - `bebop-report.html` - Professional HTML report (when loglevel=DEBUG)
+   - `bebop-report.md` - Findings-only Markdown/text report (`--text-report`);
+     no errors or log noise, and more comprehensive than the HTML report
 2. The HTML report includes:
    - All HTTP headers with values
    - Discovered file paths with response codes
