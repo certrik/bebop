@@ -29,27 +29,51 @@ jobs:
         uses: actions/checkout@v5
       - name: wait_circuit_built
         run: |
-          echo "Waiting for Tor to establish circuits..."
-          max_attempts=30
-          attempt=0
-          while [ $attempt -lt $max_attempts ]; do
-            if curl -s --socks5-hostname localhost:9050 --max-time 5 https://check.torproject.org/api/ip > /dev/null 2>&1; then
-              echo "Tor is ready!"
+          # 1) wait for the SOCKS proxy port to accept connections (container up)
+          echo "Waiting for the Tor SOCKS proxy on localhost:9050..."
+          port_open=0
+          for i in $(seq 1 30); do
+            if timeout 3 bash -c '</dev/tcp/localhost/9050' 2>/dev/null; then
+              echo "SOCKS port is open"
+              port_open=1
               break
             fi
-            attempt=$((attempt + 1))
-            echo "Attempt $attempt/$max_attempts: Tor not ready yet, waiting..."
+            echo "port check $i/30: 9050 not open yet, waiting..."
             sleep 2
           done
-          if [ $attempt -eq $max_attempts ]; then
-            echo "Error: Tor failed to become ready after $max_attempts attempts"
+          if [ "$port_open" -ne 1 ]; then
+            echo "::error::Tor SOCKS proxy container never opened port 9050"
+            exit 1
+          fi
+
+          # 2) wait for Tor to actually route a request. Gate on example.com (a
+          # rock-solid, unthrottled target) rather than check.torproject.org,
+          # which is frequently rate-limited/unavailable and gives false negatives.
+          echo "Waiting for Tor to build a working circuit..."
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS --socks5-hostname localhost:9050 --max-time 8 -o /dev/null https://example.com; then
+              echo "Tor is routing (attempt $attempt) - ready!"
+              ready=1
+              break
+            fi
+            echo "Attempt $attempt/30: Tor not ready yet, waiting..."
+            sleep 3
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::Tor failed to build a working circuit"
+            echo "--- diagnostics ---"
+            curl -v --socks5-hostname localhost:9050 --max-time 10 https://example.com || true
             exit 1
           fi
       - name: check_proxy
         run: |
-          echo "Verifying Tor connection..."
-          curl -s --socks5-hostname localhost:9050 https://check.torproject.org/api/ip
-          echo "Tor proxy is working correctly!"
+          # informational only - confirms exit IP and Tor status, but never fails
+          # the job (readiness was already proven above)
+          echo "Tor exit check (informational):"
+          curl -s --socks5-hostname localhost:9050 --max-time 15 https://check.torproject.org/api/ip \
+            || echo "(check.torproject.org unavailable - proceeding, Tor routing already confirmed)"
+          echo
       - name: prepare
         run: |
           pip3 install -e .
