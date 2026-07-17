@@ -21,6 +21,9 @@ def getmmh3(encodedfavicon):
 
 def getmd5(encodedfavicon):
     try:
+        # favicons pulled from a data: URI arrive as str; hashlib needs bytes
+        if isinstance(encodedfavicon, str):
+            encodedfavicon = encodedfavicon.encode('utf-8')
         return hashlib.md5(encodedfavicon).hexdigest()
     except Exception as e:
         log.error("error calculating md5 hash: %s", e)
@@ -92,8 +95,9 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
         }
     if doshodan is True:
         query_shodan('http.favicon.hash:' + str(faviconmmh3))
-    if docensys is True:
-        query_censys('host.services.http.response.favicons.md5_hash="' + str(faviconmd5) + '"')
+    if docensys is True and faviconmd5:
+        # Platform v3: the favicon lives on the web dataset (mirrors headers/title).
+        query_censys('web.endpoints.http.favicons.md5_hash="' + str(faviconmd5) + '"')
     if dozoome is True:
         query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:

@@ -210,7 +210,9 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
 
     # Original etag processing
     if 'etag' in interesting_headers:
-        etag = requestobject.headers['etag']
+        # etag values are quoted (e.g. W/"abc"); the embedded double-quotes break
+        # every engine's query syntax, so strip them for the pivot.
+        etag = requestobject.headers['etag'].replace('"', '')
         if doshodan:
             query_shodan(f'http.headers.etag:"{etag}"')
         if docensys:
@@ -223,7 +225,7 @@ def main(requestobject, doshodan=True, docensys=True, dozoome=True, dofofa=True,
 
     # Original server processing
     if 'server' in interesting_headers:
-        server = requestobject.headers['server']
+        server = requestobject.headers['server'].replace('"', '')
         if doshodan:
             query_shodan(f'http.headers.server:"{server}"')
         if docensys:

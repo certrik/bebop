@@ -57,17 +57,22 @@ def main(fqdn, port, usetor=True, doshodan=True, docensys=True, dozoome=True, do
         logging.debug('port not specified, defaulting to 443')
         port = 443
     hostname_idna = idna.encode(fqdn)
-    sock = socket.socket()
     if usetor is True:
         log.debug('using tor proxy - %s:%s', sockshost, socksport)
-        socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, sockshost, socksport)
+        # use a SOCKS socket with rdns=True so the .onion is resolved by the Tor
+        # proxy. (socks.setdefaultproxy only affects socks.socksocket, not a plain
+        # socket.socket - the old code connected directly and failed on .onion.)
+        sock = socks.socksocket()
+        sock.set_proxy(socks.SOCKS5, sockshost, int(socksport), rdns=True)
+    else:
+        sock = socket.socket()
+    sock.settimeout(15)
     try:
         log.debug('connecting to %s:%s', fqdn, port)
         sock.connect((fqdn, port))
-    except socket.gaierror:
-        if fqdn.endswith('.onion') is False:
-            logging.error('unable to resolve hostname: %s', fqdn)
-            return None
+    except (OSError, socks.ProxyError) as e:
+        logging.error('unable to connect to %s:%s - %s', fqdn, port, e)
+        return None
     ctx = SSL.Context(SSL.SSLv23_METHOD)
     ctx.check_hostname = False
     ctx.verify_mode = SSL.VERIFY_NONE

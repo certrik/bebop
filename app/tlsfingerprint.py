@@ -72,7 +72,8 @@ def probe_tls_connection(hostname, port, tls_version, usetor=True):
                     match = re.search(r'socks5h?://([^:]+):(\d+)', proxy['http'])
                     if match:
                         proxy_host, proxy_port = match.groups()
-                        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port))
+                        # rdns=True so .onion hostnames resolve via the Tor proxy
+                        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port), rdns=True)
             except ImportError:
                 logger.warning("PySocks not available for Tor routing in TLS probe")
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -196,7 +197,8 @@ def extract_cert_fingerprints(hostname, port, usetor=True):
                     match = re.search(r'socks5h?://([^:]+):(\d+)', proxy['http'])
                     if match:
                         proxy_host, proxy_port = match.groups()
-                        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port))
+                        # rdns=True so .onion hostnames resolve via the Tor proxy
+                        sock.set_proxy(socks.SOCKS5, proxy_host, int(proxy_port), rdns=True)
             except ImportError:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
