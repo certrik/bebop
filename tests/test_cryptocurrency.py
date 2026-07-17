@@ -59,3 +59,24 @@ def test_walletexplorer_inspect_and_pivot(self, mock_get):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestBtcValidation(unittest.TestCase):
+    """Checksum validation that rejects hex-looking false matches."""
+
+    def test_real_addresses_validate(self):
+        for addr in [
+            '1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX',            # P2PKH
+            '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',            # P2SH
+            'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',    # bech32 v0
+            'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297',  # taproot bech32m
+        ]:
+            self.assertTrue(cryptocurrency.is_valid_btc(addr), addr)
+
+    def test_hex_false_matches_rejected(self):
+        # these all pass the loose regex but are not real addresses
+        for addr in [
+            '173ed631b6874663fccaf47238744', '324ab4da25e56c4ab5fab42d65d458',
+            '1ad247ab5faa56dc1deccd783a8d6', '31589b34af2c477b1c3e8c96fbdb8b2f9f',
+        ]:
+            self.assertFalse(cryptocurrency.is_valid_btc(addr), addr)
