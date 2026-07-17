@@ -97,6 +97,14 @@ jobs:
           URLSCAN_API_KEY: ${{ secrets.URLSCAN_API_KEY }}
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
           ZOOMEYE_API_KEY: ${{ secrets.ZOOMEYE_API_KEY }}
+          # Out-of-band callback deanon (ACTIVE, opt-in). Left unset = disabled.
+          # Set these repo secrets ONLY with authorisation and burner callback
+          # infrastructure - the callback exposes your listener to the target.
+          # See the OPSEC section in app/oob.py and OPSEC.md.
+          BEBOP_OOB_CALLBACK: ${{ secrets.BEBOP_OOB_CALLBACK }}
+          BEBOP_OOB_POLL_URL: ${{ secrets.BEBOP_OOB_POLL_URL }}
+          BEBOP_OOB_SCHEME: ${{ secrets.BEBOP_OOB_SCHEME }}
+          BEBOP_OOB_INJECT: ${{ secrets.BEBOP_OOB_INJECT }}
       - name: upload artifacts
         uses: actions/upload-artifact@v6
         with:

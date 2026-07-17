@@ -129,6 +129,23 @@ if the response object is unknown or there is uncertainty with string-matches, u
   - the expected response status code
   - a string expected within the page source
 
+an entry may also carry `desc` (report label), `method`/`json`/`data`/`headers`
+for non-GET probes (GraphQL introspection, Elasticsearch, XML-RPC), and matched
+leaks are mined for the origin's real addressing (public IPs, `SERVER_ADDR`,
+Prometheus `instance=` labels, internal hostnames) which feed the correlation
+layer directly.
+
+### out-of-band callback deanon (⚠ active, opt-in)
+
+[oob.py](app/oob.py) can actively induce the target to connect back to a
+listener you control (WordPress XML-RPC `pingback.ping`, or a generic
+`--oob-inject` SSRF template); the listener records the origin's real clearnet
+egress IP. Enable with `--oob-callback <host>` (or `BEBOP_OOB_*` env vars in
+CI). **This is intrusive and can expose you — the callback reveals your
+infrastructure to the target, and the Tor anonymity on the probe leg does not
+cover the callback leg. Read [OPSEC.md](OPSEC.md) before using it, and only run
+it with authorisation.**
+
 ### cryptocurrency
 
 field extractions for bitcoin, monero and ethereum - leveraging blockcypher & walletexplorer for balance checks and pivoting
