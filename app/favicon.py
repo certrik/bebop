@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 from app.getpage import main as getpage_main
-from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa, query_modat, query_validin_pivot
+from app.subprocessors import query_shodan, query_censys, query_zoomeye, query_fofa, query_validin_pivot
 
 log = logging.getLogger(__name__)
 
@@ -98,8 +98,8 @@ def main(domain, requestobject, doshodan=True, usetor=True, docensys=True, dozoo
         query_zoomeye('iconhash:' + str(faviconmmh3))
     if dofofa is True:
         query_fofa('icon_hash=' + str(faviconmmh3))
-    if domodat is True:
-        query_modat('web.favicon.mmh3:' + str(faviconmmh3))
+    # Modat omitted: web.favicon.* is in the UI vocabulary but the API still
+    # answers "not yet supported" - re-check later for favicon pivots.
     if dovalidin is True:
         query_validin_pivot(faviconmd5)
     return {

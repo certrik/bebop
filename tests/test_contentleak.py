@@ -81,19 +81,21 @@ class TestContentLeak(unittest.TestCase):
         self.assertEqual(len(h1['sha256']), 64)
 
     @patch('app.contentleak.query_validin_pivot')
+    @patch('app.contentleak.query_modat')
     @patch('app.contentleak.query_zoomeye')
     @patch('app.contentleak.query_shodan')
-    def test_main_pivots_body_hash(self, mock_shodan, mock_zoomeye, mock_validin):
+    def test_main_pivots_body_hash(self, mock_shodan, mock_zoomeye, mock_modat, mock_validin):
         req = make_request(SAMPLE_HTML, headers={'Onion-Location': 'http://twin.onion/'})
         findings = contentleak.main(req)
-        # body-hash pivots fired on the verified engines: Shodan (mmh3),
-        # ZoomEye (md5), Validin (sha1). Modat has no body-hash field.
+        # body-hash pivots fired on each engine's indexed form: Shodan (mmh3),
+        # ZoomEye (md5), Modat (web.html.sha256), Validin (sha1).
         self.assertTrue(mock_shodan.called)
         self.assertTrue(mock_zoomeye.called)
+        self.assertTrue(mock_modat.called)
         self.assertTrue(mock_validin.called)
         self.assertTrue(mock_shodan.call_args[0][0].startswith('http.html_hash:'))
-        # ZoomEye pivots on the md5, Validin on the sha1
         self.assertEqual(mock_zoomeye.call_args[0][0], 'body_hash:' + findings['body_hash']['md5'])
+        self.assertEqual(mock_modat.call_args[0][0], 'web.html.sha256="' + findings['body_hash']['sha256'] + '"')
         self.assertEqual(mock_validin.call_args[0][0], findings['body_hash']['sha1'])
         # findings surface the high-signal items
         self.assertTrue(findings['clearnet_resources'])
