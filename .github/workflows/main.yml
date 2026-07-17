@@ -74,7 +74,7 @@ jobs:
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
           ZOOMEYE_API_KEY: ${{ secrets.ZOOMEYE_API_KEY }}
       - name: upload artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: bebop-results
           path: |
