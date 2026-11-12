@@ -22,6 +22,7 @@ from app.cryptocurrency import main as cryptocurrency_main
 from app.finddomains import main as finddomains_main
 from app.analytics import main as analytics_main
 from app.contentleak import main as contentleak_main
+from app.httpdowngrade import main as httpdowngrade_main
 from app.robotsmap import main as robotsmap_main
 from app import correlate
 from app import oob
@@ -198,6 +199,37 @@ def main():
     # PGP/e-mail, body-hash pivot)
     contentleak_data = contentleak_main(requestobject)
 
+    # NEW: no-Host HTTP/1.0 downgrade probe. Re-request the main URL with a
+    # downgraded HTTP/1.0 request carrying no Host header (and, over TLS, no
+    # SNI), forcing a vhost-multiplexing front end to fall back to its default
+    # backend. Diffed against the Host-ed baseline; any origin IPs / hostnames
+    # the default vhost leaks feed the correlation layer like config leaks do.
+    httpdowngrade_data = None
+    try:
+        hostless_baseline = {
+            'fqdn': fqdn,
+            'server': (dict(requestobject.headers).get('Server')
+                       or dict(requestobject.headers).get('server')),
+            'title': title_data,
+            'body_sha256': (contentleak_data.get('body_hash') or {}).get('sha256')
+                           if contentleak_data else None,
+            'status_code': requestobject.status_code,
+        }
+        httpdowngrade_data = httpdowngrade_main(
+            args.target, usetor=torstate, baseline=hostless_baseline)
+        _hd_ind = (httpdowngrade_data or {}).get('indicators') or {}
+        for _ip in _hd_ind.get('public_ips', []):
+            leaked_public_ips.add(_ip)
+            correlate.add_candidate(_ip, 'httpdowngrade', 'httpdowngrade:no_host_default_vhost')
+        for _h in _hd_ind.get('hostnames', []):
+            leaked_hostnames.add(_h)
+            correlate.add_candidate(_h, 'httpdowngrade', 'httpdowngrade:no_host_default_vhost')
+        if httpdowngrade_data and any((httpdowngrade_data.get('diff') or {}).values()):
+            logging.warning('no-Host HTTP/1.0 probe differs from baseline: %s',
+                            {k: v for k, v in httpdowngrade_data['diff'].items() if v})
+    except Exception as e:
+        logging.error('httpdowngrade probe failed (%s) - continuing', e)
+
     # NEW: Robots.txt and sitemap analysis
     robotsmap_data = robotsmap_main(url_base, usetor=torstate)
 
@@ -324,6 +356,7 @@ def main():
             'favicon': favicon_data,
             'analytics': analytics_data,
             'contentleak': contentleak_data,
+            'httpdowngrade': httpdowngrade_data,
             'robotsmap': robotsmap_data,
             'tls_fingerprint': tlsfingerprint_data,
             'cryptocurrency': cryptocurrency_data,

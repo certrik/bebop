@@ -47,6 +47,8 @@ graph LR
     mainget --> leaks["content leaks: clearnet refs, pgp, email"]
     mainget --> spider["spider recursive pages"]
     mainget --> cryptoc["check for wallets"]
+    mainget --> downgrade["no-Host HTTP/1.0 probe"]
+    downgrade -.-> candidates
 
     lookupsaver[("if rare value")]
     favicon --> lookupsaver
@@ -91,6 +93,7 @@ graph LR
 - **TLS/SSL fingerprinting (cipher suites, cert fingerprints)** 🆕
 - **analytics & tracking code extraction (12+ platforms)** 🆕
 - **robots.txt & sitemap.xml deep analysis** 🆕
+- **no-Host HTTP/1.0 downgrade probe (default-vhost / origin disclosure)** 🆕
 
 # technicals
 
@@ -193,6 +196,42 @@ it will also attempt to discover the SSL serial and if deemed globally rare, pol
 - **Reporting Endpoints**: Discovers backend reporting URLs from CSP-report, NEL, and Report-To headers that may leak infrastructure details.
 
 All discovered domains are automatically queried against Shodan, Censys, and ZoomEye for correlation.
+
+### no-Host HTTP/1.0 downgrade probe
+
+[httpdowngrade.py](app/httpdowngrade.py) re-requests the **main URL** with a deliberately
+downgraded, context-stripped request to coax a virtual-host front end into revealing the
+backend it hides.
+
+CDNs and reverse proxies (Cloudflare, generic nginx/Apache vhost front ends) decide which
+backend to serve from the request's `Host` header and, over TLS, from the SNI in the TLS
+ClientHello. bebop's normal fetch sends both, so it only ever sees what the front end is
+configured to show for that hostname. This probe opens a raw socket (over the Tor SOCKS
+proxy, exactly like the JARM probe) and sends:
+
+```http
+GET / HTTP/1.0
+User-Agent: ...
+Accept: */*
+Connection: close
+```
+
+with **no `Host` header** and, for HTTPS, **no SNI**. An HTTP/1.0 request carries no host
+context at all, so a server that multiplexes virtual hosts has to fall back to its *default*
+vhost — frequently the real origin application, a catch-all error page, or a status/landing
+page that the fronted hostname never exposes.
+
+The host-less response is diffed against the Host-ed baseline, and anything the default vhost
+discloses becomes a deanonymization signal:
+
+- a different `Server` banner, status code, page title or body hash than the baseline;
+- a `Location` redirect to the origin's **real hostname**;
+- the origin's real public IP / internal hostnames echoed in the body or headers — mined with
+  the same origin-indicator extractor the [config checks](#config-checks) use, and fed straight
+  into the correlation layer as candidate origins.
+
+The probe is read-only (a single, syntactically-valid `GET`), but because it strips the routing
+context it can reach past the front end to the origin — which is the whole point.
 
 ### open directories
 

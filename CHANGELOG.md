@@ -55,6 +55,16 @@ the onion baseline.
   reverse-resolve them into associated domains, which are then confirmed
   against the onion and folded back into the ranking (bounded by `max_ips` /
   `max_domains` to respect resolver rate limits).
+- **No-Host HTTP/1.0 downgrade probe** (`app/httpdowngrade.py`): re-requests the
+  main URL over a raw Tor socket with a downgraded HTTP/1.0 request that carries
+  **no `Host` header** (and, over TLS, **no SNI**), forcing a virtual-host front
+  end (Cloudflare, nginx/Apache vhosts) to fall back to its default backend. The
+  host-less response is diffed against the Host-ed baseline (`Server`, status,
+  title, body hash, off-site `Location` redirect), and any origin IPs / internal
+  hostnames the default vhost discloses are mined with the config-check origin
+  extractor and registered as correlation candidates (leaked public IPs are also
+  confirmed directly against the onion baseline). Runs by default on every scan
+  and is surfaced in both the HTML and text reports.
 - **JARM active TLS fingerprinting** (`app/jarm.py`): computes a JARM hash over
   Tor and pivots it across Shodan, ZoomEye, Modat, Censys, and Validin.
 - **Content-leak & attribution module** (`app/contentleak.py`): detects
@@ -114,3 +124,7 @@ the onion baseline.
   a string.
 - `pyjarm` no longer clobbers logging configuration at import time.
 - Broken README Mermaid diagram now renders on GitHub.
+- Dependency install no longer fails building `shodan`: the Docker build and the
+  GitHub Actions run now upgrade `pip`/`setuptools`/`wheel` before installing
+  `requirements.txt`, so shodan's legacy sdist builds against current setuptools
+  instead of tripping the `install_layout` AttributeError on distro setuptools.

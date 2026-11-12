@@ -237,6 +237,7 @@ def generate_html_report(scan_data):
             {_generate_favicon_section(scan_data)}
             {_generate_analytics_section(scan_data)}
             {_generate_contentleak_section(scan_data)}
+            {_generate_httpdowngrade_section(scan_data)}
             {_generate_robotsmap_section(scan_data)}
             {_generate_cryptocurrency_section(scan_data)}
             {_generate_pagespider_section(scan_data)}
@@ -866,6 +867,75 @@ def _generate_contentleak_section(data):
     html = f"""
     <div class="section">
         <h2 class="section-title">🕵️ Content Leaks & Attribution</h2>
+        {body}
+    </div>
+    """
+    return html
+
+
+def _generate_httpdowngrade_section(data):
+    """Generate the no-Host HTTP/1.0 downgrade probe section"""
+    hd = data.get('httpdowngrade')
+    if not isinstance(hd, dict) or not hd.get('performed'):
+        return ""
+
+    diff = {k: v for k, v in (hd.get('diff') or {}).items() if v}
+    status = f"{escape(str(hd.get('http_version') or '?'))} {escape(str(hd.get('status_code') or '?'))} {escape(str(hd.get('status_reason') or ''))}".strip()
+    diff_badge = ("<span class='badge badge-danger'>differs from baseline</span>"
+                  if diff else "<span class='badge badge-secondary'>matches baseline</span>")
+
+    body = f"""
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="label">Request</div>
+                <div class="value"><code>{escape(hd.get('request_line', 'GET / HTTP/1.0'))}</code>
+                    <span class="badge badge-warning">no Host header</span>
+                    {"<span class='badge badge-warning'>no SNI</span>" if hd.get('tls') else ""}</div>
+            </div>
+            <div class="info-item">
+                <div class="label">Response</div>
+                <div class="value">{status} {diff_badge}</div>
+            </div>
+            <div class="info-item">
+                <div class="label">Server</div>
+                <div class="value"><code>{escape(str(hd.get('server') or 'N/A'))}</code></div>
+            </div>
+            <div class="info-item">
+                <div class="label">Location</div>
+                <div class="value"><code>{escape(str(hd.get('location') or 'N/A'))}</code></div>
+            </div>
+        </div>
+    """
+
+    if hd.get('title'):
+        body += (f"<div class='subsection'><h3 class='subsection-title'>Default-vhost page title</h3>"
+                 f"<div class='code-block'>{escape(hd['title'])}</div></div>")
+
+    if diff:
+        body += "<div class='subsection'><h3 class='subsection-title'>⚠️ Differences from the Host-ed baseline</h3>"
+        for k in sorted(diff):
+            body += f"<div class='list-item'><span class='badge badge-danger'>{escape(k.replace('_', ' '))}</span></div>"
+        body += "</div>"
+
+    ind = hd.get('indicators') or {}
+    leaked = ((ind.get('public_ips') or []) + (ind.get('private_ips') or [])
+              + (ind.get('hostnames') or []))
+    if leaked:
+        body += "<div class='subsection'><h3 class='subsection-title'>🕵️ Origin indicators leaked by the default vhost</h3>"
+        for token in leaked:
+            body += f"<div class='list-item'><code>{escape(token)}</code></div>"
+        body += "</div>"
+
+    bh = hd.get('body_hash') or {}
+    if bh.get('sha256'):
+        body += ("<div class='subsection'><h3 class='subsection-title'>Default-vhost body hash (pivot)</h3>"
+                 f"<div class='info-item'><div class='label'>mmh3</div><div class='value'><code>{escape(str(bh.get('mmh3')))}</code></div></div>"
+                 f"<div class='info-item'><div class='label'>sha256</div><div class='value'><code>{escape(str(bh.get('sha256')))}</code></div></div></div>")
+
+    html = f"""
+    <div class="section">
+        <h2 class="section-title">🔻 No-Host HTTP/1.0 Downgrade Probe</h2>
+        <p style="color: #8b9dc3; margin-bottom: 12px;">Re-requests the main URL with a downgraded HTTP/1.0 request and no Host header (and no TLS SNI), forcing a virtual-host front end to reveal its default backend.</p>
         {body}
     </div>
     """
