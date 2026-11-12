@@ -222,6 +222,37 @@ def _contentleak_section(data):
     return lines
 
 
+def _httpdowngrade_section(data):
+    hd = data.get('httpdowngrade')
+    if not isinstance(hd, dict) or not hd.get('performed'):
+        return []
+    lines = [
+        f'- **request:** `{hd.get("request_line", "GET / HTTP/1.0")}` '
+        '(no Host header'
+        + (', no SNI' if hd.get('tls') else '') + ')',
+        f'- **response:** {hd.get("http_version") or "?"} '
+        f'{hd.get("status_code") or "?"} {hd.get("status_reason") or ""}'.rstrip(),
+    ]
+    if hd.get('server'):
+        lines.append(f'- **Server:** {hd["server"]}')
+    if hd.get('location'):
+        lines.append(f'- **Location:** {hd["location"]}')
+    if hd.get('title'):
+        lines.append(f'- **default-vhost title:** {hd["title"]}')
+    bh = hd.get('body_hash') or {}
+    if bh.get('sha256'):
+        lines.append(f'- **body sha256:** `{bh["sha256"]}`')
+    diff = {k: v for k, v in (hd.get('diff') or {}).items() if v}
+    if diff:
+        lines.append(f'- **differs from Host-ed baseline:** {", ".join(sorted(diff))}')
+    ind = hd.get('indicators') or {}
+    leaked = ((ind.get('public_ips') or []) + (ind.get('private_ips') or [])
+              + (ind.get('hostnames') or []))
+    if leaked:
+        lines.append(f'- **origin indicators leaked:** {", ".join(leaked)}')
+    return lines
+
+
 def _robotsmap_section(data):
     rm = data.get('robotsmap')
     if not isinstance(rm, dict):
@@ -341,6 +372,7 @@ def generate_text_report(scan_data):
         ('HTTP headers of interest', _headers_section(scan_data)),
         ('Page title', _title_section(scan_data)),
         ('Content leaks', _contentleak_section(scan_data)),
+        ('No-Host HTTP/1.0 downgrade probe', _httpdowngrade_section(scan_data)),
         ('Analytics / tracking IDs', _analytics_section(scan_data)),
         ('Cryptocurrency wallets', _crypto_section(scan_data)),
         ('Robots.txt & sitemaps', _robotsmap_section(scan_data)),
