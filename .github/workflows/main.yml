@@ -64,6 +64,10 @@ jobs:
           fi
       - name: prepare
         run: |
+          # shodan ships only a legacy sdist whose setup.py fails to build
+          # against the runner's distro setuptools (install_layout
+          # AttributeError); upgrade the build tooling before installing.
+          python3 -m pip install --upgrade pip setuptools wheel
           pip3 install -e .
           pip3 install -r requirements.txt
           sudo apt install --yes proxychains-ng nmap python3-pip jq

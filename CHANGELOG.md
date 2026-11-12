@@ -124,3 +124,7 @@ the onion baseline.
   a string.
 - `pyjarm` no longer clobbers logging configuration at import time.
 - Broken README Mermaid diagram now renders on GitHub.
+- Dependency install no longer fails building `shodan`: the Docker build and the
+  GitHub Actions run now upgrade `pip`/`setuptools`/`wheel` before installing
+  `requirements.txt`, so shodan's legacy sdist builds against current setuptools
+  instead of tripping the `install_layout` AttributeError on distro setuptools.

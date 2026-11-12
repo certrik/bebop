@@ -11,8 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies. Upgrade the build tooling first: shodan ships
+# only a legacy sdist (no wheel) whose setup.py breaks against older/distro
+# setuptools (the `install_layout` AttributeError), so a current
+# pip/setuptools/wheel is required to build it.
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Final stage
 FROM python:3.11-slim
