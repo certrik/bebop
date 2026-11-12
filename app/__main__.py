@@ -217,16 +217,22 @@ def main():
         }
         httpdowngrade_data = httpdowngrade_main(
             args.target, usetor=torstate, baseline=hostless_baseline)
-        _hd_ind = (httpdowngrade_data or {}).get('indicators') or {}
-        for _ip in _hd_ind.get('public_ips', []):
-            leaked_public_ips.add(_ip)
-            correlate.add_candidate(_ip, 'httpdowngrade', 'httpdowngrade:no_host_default_vhost')
-        for _h in _hd_ind.get('hostnames', []):
-            leaked_hostnames.add(_h)
-            correlate.add_candidate(_h, 'httpdowngrade', 'httpdowngrade:no_host_default_vhost')
-        if httpdowngrade_data and any((httpdowngrade_data.get('diff') or {}).values()):
-            logging.warning('no-Host HTTP/1.0 probe differs from baseline: %s',
-                            {k: v for k, v in httpdowngrade_data['diff'].items() if v})
+        # Only treat the default-vhost indicators as an origin leak when the
+        # host-less response actually differs from the Host-ed baseline. An
+        # empty diff means the front end gave the same answer with or without
+        # the Host header (no leak); feeding those indicators into correlation
+        # would register the site's own self-referential addressing as false
+        # origin candidates and waste clearnet confirmation fetches.
+        _hd_diff = {k: v for k, v in ((httpdowngrade_data or {}).get('diff') or {}).items() if v}
+        if _hd_diff:
+            _hd_ind = (httpdowngrade_data or {}).get('indicators') or {}
+            for _ip in _hd_ind.get('public_ips', []):
+                leaked_public_ips.add(_ip)
+                correlate.add_candidate(_ip, 'httpdowngrade', 'httpdowngrade:no_host_default_vhost')
+            for _h in _hd_ind.get('hostnames', []):
+                leaked_hostnames.add(_h)
+                correlate.add_candidate(_h, 'httpdowngrade', 'httpdowngrade:no_host_default_vhost')
+            logging.warning('no-Host HTTP/1.0 probe differs from baseline: %s', _hd_diff)
     except Exception as e:
         logging.error('httpdowngrade probe failed (%s) - continuing', e)
 
