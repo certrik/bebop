@@ -92,10 +92,16 @@ def build_request(path, user_agent=useragentstr):
 
 
 def _recv_all(sock, limit=_MAX_BODY):
-    '''Read until the server closes the connection (HTTP/1.0) or we hit limit.'''
+    '''Read until the server closes the connection (HTTP/1.0) or we hit limit.
+
+    Returns ``(data, truncated)``. ``truncated`` is True when the stream was cut
+    off at ``limit`` so callers know the body is incomplete and must not be
+    compared byte-for-byte against a full-body baseline.
+    '''
     chunks = []
     total = 0
-    while total <= limit:
+    truncated = False
+    while True:
         try:
             buf = sock.recv(16384)
         except socket.timeout:
@@ -104,7 +110,10 @@ def _recv_all(sock, limit=_MAX_BODY):
             break
         chunks.append(buf)
         total += len(buf)
-    return b''.join(chunks)
+        if total >= limit:
+            truncated = True
+            break
+    return b''.join(chunks), truncated
 
 
 def parse_response(raw):
@@ -147,12 +156,23 @@ def parse_response(raw):
     }
 
 
+def _normalize_title(text):
+    '''Collapse whitespace so titles from different parsers compare equal.
+
+    Shared by the probe's own title extraction and by ``compare_baseline`` so a
+    purely-cosmetic whitespace difference between the raw baseline title and the
+    probe title is never mistaken for a real page difference.
+    '''
+    if not text:
+        return ''
+    return re.sub(r'\s+', ' ', text).strip()
+
+
 def _extract_title(body_bytes):
     m = _TITLE_RE.search(body_bytes or b'')
     if not m:
         return None
-    title = m.group(1).decode('utf-8', 'replace')
-    title = re.sub(r'\s+', ' ', title).strip()
+    title = _normalize_title(m.group(1).decode('utf-8', 'replace'))
     return title or None
 
 
@@ -178,14 +198,18 @@ def compare_baseline(result, baseline):
     if b_server and r_server and b_server != r_server:
         diff['server_differs'] = True
 
-    b_title = (baseline.get('title') or '').strip()
-    r_title = (result.get('title') or '').strip()
+    b_title = _normalize_title(baseline.get('title'))
+    r_title = _normalize_title(result.get('title'))
     if b_title and r_title and b_title != r_title:
         diff['title_differs'] = True
 
+    # Only compare bodies when the probe captured a complete body. The baseline
+    # sha256 is over the full (decompressed) Host-ed response, whereas the probe
+    # body is read raw off the socket and capped at _MAX_BODY; comparing a
+    # truncated body against a full-body hash would always report a difference.
     b_hash = baseline.get('body_sha256')
     r_hash = (result.get('body_hash') or {}).get('sha256')
-    if b_hash and r_hash and b_hash != r_hash:
+    if b_hash and r_hash and not result.get('body_truncated') and b_hash != r_hash:
         diff['body_differs'] = True
 
     b_code = baseline.get('status_code')
@@ -236,6 +260,7 @@ def main(target, usetor=True, baseline=None, timeout=30):
         'content_length': None,
         'title': None,
         'body_hash': None,
+        'body_truncated': False,
         'headers': {},
         'indicators': {'public_ips': [], 'private_ips': [], 'hostnames': []},
         'diff': {},
@@ -261,7 +286,7 @@ def main(target, usetor=True, baseline=None, timeout=30):
             ctx.verify_mode = ssl.CERT_NONE
             sock = ctx.wrap_socket(sock)  # no server_hostname => no SNI
         sock.sendall(build_request(path))
-        raw = _recv_all(sock)
+        raw, body_truncated = _recv_all(sock)
     except Exception as e:
         result['error'] = str(e)
         log.info('httpdowngrade: probe failed for %s - %s', target, e)
@@ -294,6 +319,7 @@ def main(target, usetor=True, baseline=None, timeout=30):
         result['content_length'] = None
 
     body = parsed_resp['body'] or b''
+    result['body_truncated'] = body_truncated
     result['title'] = _extract_title(body)
     if body:
         result['body_hash'] = compute_body_hash(body)
